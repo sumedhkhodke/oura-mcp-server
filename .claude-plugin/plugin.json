@@ -1,0 +1,17 @@
+{
+  "name": "oura",
+  "description": "Oura Ring health data for Claude — remote MCP server (sleep, readiness, activity, HRV, trends, correlations) plus a /oura skill",
+  "version": "0.1.0",
+  "author": { "name": "sumedhkhodke" },
+  "homepage": "https://github.com/sumedhkhodke/oura-mcp-server",
+  "repository": "https://github.com/sumedhkhodke/oura-mcp-server",
+  "mcpServers": {
+    "oura": {
+      "type": "http",
+      "url": "https://oura-mcp-server-production-fa2e.up.railway.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OURA_MCP_AUTH_TOKEN}"
+      }
+    }
+  }
+}

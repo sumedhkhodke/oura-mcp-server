@@ -126,6 +126,20 @@ claude mcp add -s user --transport http oura https://<app>.up.railway.app/mcp \
   --header "Authorization: Bearer <OURA_MCP_AUTH_TOKEN>"
 ```
 
+## Claude Code plugin
+
+The repo doubles as a Claude Code plugin bundling the hosted MCP server and a
+`/oura` skill (conversational briefings, trends, correlations):
+
+```bash
+export OURA_MCP_AUTH_TOKEN=<bearer token for the hosted server>
+claude plugin marketplace add sumedhkhodke/oura-mcp-server
+claude plugin install oura@oura-plugins
+```
+
+Using a directly registered server instead? Just copy the skill:
+`cp -r skills/oura ~/.claude/skills/`.
+
 ## Development
 
 ```bash
