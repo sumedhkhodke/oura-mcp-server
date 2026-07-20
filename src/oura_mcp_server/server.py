@@ -407,6 +407,54 @@ async def delete_webhook_subscription(subscription_id: str) -> dict[str, Any]:
     return await _with_webhook_client(lambda wc: wc.delete(subscription_id))
 
 
+# --------------------------------------------------------------------------- #
+# Webhook callback receiver (Oura -> this server)
+# --------------------------------------------------------------------------- #
+
+
+@mcp.custom_route("/webhook", methods=["GET", "POST"])
+async def oura_webhook_callback(request):
+    """Answer Oura's verification challenge (GET) and record pushed events (POST).
+
+    Oura cannot send our MCP bearer token, so this route sits outside the MCP
+    auth layer; it is gated by OURA_WEBHOOK_VERIFICATION_TOKEN instead and is
+    disabled (503) when that env var is unset.
+    """
+    from starlette.responses import JSONResponse
+
+    from . import webhook_receiver
+
+    token = webhook_receiver.verification_token()
+    if token is None:
+        return JSONResponse({"error": "webhook receiver not configured"}, status_code=503)
+
+    if request.method == "GET":
+        if request.query_params.get("verification_token") != token:
+            return JSONResponse({"error": "bad verification token"}, status_code=403)
+        return JSONResponse({"challenge": request.query_params.get("challenge", "")})
+
+    try:
+        event = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON"}, status_code=400)
+    webhook_receiver.record_event(event)
+    logger.info("Oura webhook event: %s", event)
+    return JSONResponse({"status": "received"})
+
+
+@mcp.tool
+async def get_recent_webhook_events(limit: int = 50) -> dict[str, Any]:
+    """Recent Oura webhook events received by this server's /webhook endpoint.
+
+    Newest first. The buffer is in-memory (last 200 events) and clears on server
+    restart. Events carry identifiers only (data_type, object_id, user_id) — use
+    the matching get_* tool to fetch the actual data."""
+    from . import webhook_receiver
+
+    events = webhook_receiver.recent_events(limit)
+    return {"count": len(events), "events": events}
+
+
 def build_auth_from_env():
     """Build a bearer-token verifier from ``OURA_MCP_AUTH_TOKEN``.
 

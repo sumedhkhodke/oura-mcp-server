@@ -1,135 +1,77 @@
 # oura-mcp-server
 
-An [MCP](https://modelcontextprotocol.io) server that wraps the **Oura Ring v2 API**,
-built with [FastMCP](https://gofastmcp.com). It exposes your sleep, readiness,
-activity, HRV, heart rate, SpO2, stress, resilience, workouts, and more as MCP
-tools so Claude (or any MCP client) can read and reason over your Oura data.
-
-> **Why this exists:** Oura has no mature, official, hosted MCP server yet (their
-> API legal agreement references an "MCP Server," but there's nothing you can
-> point a client at). The existing community servers are mostly Node. This is a
-> clean Python/FastMCP wrapper we control and extend as needed. Read-only.
+An [MCP](https://modelcontextprotocol.io) server for the **Oura Ring v2 API**, built
+with [FastMCP](https://gofastmcp.com). Exposes your sleep, readiness, activity, HRV,
+heart rate, SpO2, stress, resilience, workouts, and more as read-only MCP tools for
+Claude or any MCP client.
 
 ## Tools
 
-**Raw endpoint tools** — all date-range tools accept `start_date` / `end_date`
-(ISO `YYYY-MM-DD`) and **default to the last 7 days** when omitted.
-
-| Tool | Oura endpoint | What you get |
-| --- | --- | --- |
-| `get_daily_sleep` | `daily_sleep` | Nightly Sleep score + contributors |
-| `get_daily_readiness` | `daily_readiness` | Readiness score + contributors |
-| `get_daily_activity` | `daily_activity` | Steps, calories, MET minutes, Activity score |
-| `get_sleep_periods` | `sleep` | Detailed per-night stages, HR/HRV series, hypnogram |
-| `get_daily_spo2` | `daily_spo2` | Nightly blood-oxygen % + breathing disturbance |
-| `get_daily_stress` | `daily_stress` | Daytime high-stress vs. recovery time |
-| `get_daily_resilience` | `daily_resilience` | Long-term resilience level + contributors |
-| `get_daily_cardiovascular_age` | `daily_cardiovascular_age` | Vascular age estimate |
-| `get_vo2_max` | `vO2_max` | VO2 max (cardio fitness) estimates |
-| `get_heart_rate` | `heartrate` | Raw HR samples (ISO datetimes, defaults to last 24h) |
-| `get_workouts` | `workout` | Workouts: type, intensity, calories, distance |
-| `get_sessions` | `session` | Meditation / breathing / rest sessions |
-| `get_sleep_time` | `sleep_time` | Recommended optimal bedtime windows |
-| `get_rest_mode_periods` | `rest_mode_period` | Rest Mode (illness/recovery) periods |
-| `get_tags` | `enhanced_tag` | User-logged tags/notes (caffeine, naps, symptoms…) |
-| `get_personal_info` | `personal_info` | Profile: age, sex, height, weight |
-| `get_ring_configuration` | `ring_configuration` | Ring model, hardware, color, size, firmware |
-
-**Analytics tools** — derived insights that stitch several endpoints together.
+Date-range tools accept `start_date` / `end_date` (ISO `YYYY-MM-DD`) and default to
+the last 7 days when omitted.
 
 | Tool | What you get |
 | --- | --- |
-| `get_daily_briefing` | One combined per-day summary: Sleep/Readiness/Activity scores + total sleep hours, resting HR, average HRV, temperature deviation, steps, active calories. The "how am I doing?" tool. |
-| `get_metric_trend` | Mean/min/max, first-vs-last change, delta-from-mean, and direction for one metric over the last N days. |
-| `get_metric_correlation` | Pearson correlation between two metrics, with optional day-lag — e.g. "how does last night's sleep affect tomorrow's readiness?" |
+| `get_daily_sleep` / `get_daily_readiness` / `get_daily_activity` | Daily scores + contributors |
+| `get_sleep_periods` | Per-night stages, HR/HRV series, hypnogram |
+| `get_daily_spo2` / `get_daily_stress` / `get_daily_resilience` | Blood oxygen, stress vs. recovery time, resilience |
+| `get_daily_cardiovascular_age` / `get_vo2_max` | Vascular age, cardio fitness |
+| `get_heart_rate` | Raw HR samples (defaults to last 24h) |
+| `get_workouts` / `get_sessions` / `get_tags` | Workouts, meditation/breathing sessions, user tags |
+| `get_sleep_time` / `get_rest_mode_periods` | Optimal bedtime windows, Rest Mode periods |
+| `get_personal_info` / `get_ring_configuration` | Profile, ring hardware/firmware |
 
-Metrics available to the analytics tools: `sleep_score`, `readiness_score`,
-`activity_score`, `total_sleep_hours`, `sleep_efficiency`, `resting_heart_rate`,
-`average_hrv`, `temperature_deviation`, `steps`, `active_calories`.
+**Analytics** — `get_daily_briefing` (combined per-day summary — the "how am I
+doing?" tool), `get_metric_trend` (stats + direction over N days),
+`get_metric_correlation` (Pearson between two metrics, optional day-lag). Metrics:
+`sleep_score`, `readiness_score`, `activity_score`, `total_sleep_hours`,
+`sleep_efficiency`, `resting_heart_rate`, `average_hrv`, `temperature_deviation`,
+`steps`, `active_calories`.
 
-**Webhook tools** — manage Oura push subscriptions (Oura POSTs to your callback
-when new data arrives, instead of polling). These use your OAuth **app**
-credentials, and creating one requires a publicly reachable callback that echoes
-Oura's verification challenge — see [Webhooks](#webhooks).
+**Webhooks** — `list/create/renew/delete_webhook_subscription` manage Oura push
+subscriptions. These use your OAuth app credentials (saved by `login`); creating one
+requires a publicly reachable callback that echoes Oura's verification `challenge`
+back as JSON `{"challenge": ...}`.
 
-| Tool | What it does |
-| --- | --- |
-| `list_webhook_subscriptions` | List active subscriptions |
-| `create_webhook_subscription` | Subscribe (`callback_url`, `verification_token`, `event_type`, `data_type`) |
-| `renew_webhook_subscription` | Renew before expiry |
-| `delete_webhook_subscription` | Remove a subscription |
-
-**Prompts** — ready-made analyses you can pick from the MCP client's prompt menu:
-`analyze_recovery`, `weekly_review`, `sleep_optimization`.
+**Prompts** — `analyze_recovery`, `weekly_review`, `sleep_optimization`.
 
 ## Authentication
 
-The server sends a bearer token as `Authorization: Bearer <token>`. Two ways to
-get one, resolved automatically at runtime (env var first, then the OAuth file):
+OAuth2 (Oura deprecated new Personal Access Tokens in December 2025):
 
-### OAuth2 (recommended — required for new integrations)
+1. Create an application at <https://cloud.ouraring.com/oauth/applications> with
+   redirect URI exactly `http://localhost:8080/callback` (change the port with
+   `--port` / `OURA_REDIRECT_PORT`).
+2. Log in — opens your browser, saves tokens to `~/.oura-mcp/tokens.json`, and the
+   server auto-refreshes them at runtime. Re-running `login` reuses saved credentials.
 
-Oura **deprecated new Personal Access Tokens in December 2025**, so OAuth2 is the
-path for anyone setting up fresh.
-
-1. Go to <https://cloud.ouraring.com/oauth/applications> and **create an
-   application**. Set the **redirect URI** to exactly:
-   ```
-   http://localhost:8080/callback
-   ```
-   (use a different port with `--port` / `OURA_REDIRECT_PORT`; the registered
-   URI must match). Note the **client ID** and **client secret**.
-2. Run the login command — it opens your browser, you approve, and tokens are
-   saved to `~/.oura-mcp/tokens.json` (chmod 600):
    ```bash
    oura-mcp-server login --client-id <ID> --client-secret <SECRET>
-   # or set OURA_CLIENT_ID / OURA_CLIENT_SECRET and just: oura-mcp-server login
    ```
-3. Start the server normally. It reads the token file and **auto-refreshes** the
-   access token (using the stored refresh token) whenever it expires — no env
-   vars needed at runtime.
 
-### Legacy Personal Access Token (only if you already have one)
+Have a legacy (pre-Dec-2025) PAT? Set `OURA_ACCESS_TOKEN=<token>` and skip `login`.
 
-Existing pre-Dec-2025 PATs still work. Set `OURA_ACCESS_TOKEN=<token>` and skip
-the login step. Manage existing tokens at
-<https://cloud.ouraring.com/personal-access-tokens>. (This path can't
-self-refresh, but PATs are long-lived.)
-
-> **Subscription note:** an active Oura membership is required for the API to
-> return most data. Without it you'll get the three daily scores at best.
+> An active Oura membership is required for the API to return most data.
 
 ## Setup
 
-Requires Python ≥ 3.10. Using [uv](https://docs.astral.sh/uv/):
+Requires Python ≥ 3.10 and [uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/sumedhkhodke/oura-mcp-server.git
 cd oura-mcp-server
 uv venv && uv pip install -e .
-cp .env.example .env   # fill in OAuth creds (or a legacy OURA_ACCESS_TOKEN)
-```
-
-Authenticate (OAuth2 — see [Authentication](#authentication) for app setup):
-
-```bash
 uv run oura-mcp-server login --client-id <ID> --client-secret <SECRET>
 ```
 
-Quick check it works (reads the saved OAuth token, or `OURA_ACCESS_TOKEN`):
+**Claude Code:**
 
 ```bash
-uv run python -c \
-  "import asyncio; from oura_mcp_server.client import OuraClient; \
-   print(asyncio.run(OuraClient().get_single('personal_info')))"
+claude mcp add oura -- uv --directory /absolute/path/to/oura-mcp-server run oura-mcp-server
 ```
 
-### Claude Desktop
-
-Add to `claude_desktop_config.json`
-(macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`).
-After `oura-mcp-server login`, no token env var is needed — the server reads
-`~/.oura-mcp/tokens.json` and auto-refreshes:
+**Claude Desktop** (`claude_desktop_config.json`, macOS:
+`~/Library/Application Support/Claude/`):
 
 ```json
 {
@@ -142,137 +84,57 @@ After `oura-mcp-server login`, no token env var is needed — the server reads
 }
 ```
 
-Using a legacy PAT instead? Add `"env": { "OURA_ACCESS_TOKEN": "your_token" }`.
-Restart Claude Desktop and ask, e.g., *"How did I sleep this week?"* or
-*"What's my readiness trend and resting heart rate over the last 14 days?"*
+## Remote / HTTP transport
 
-### Claude Code
-
-```bash
-# after `oura-mcp-server login`:
-claude mcp add oura -- uv --directory /absolute/path/to/oura-mcp-server run oura-mcp-server
-```
-
-### Remote / HTTP transport
-
-For a hosted deployment (reachable over the network instead of launched per
-client), run the Streamable HTTP transport:
+For a hosted deployment, run the Streamable HTTP transport — endpoint
+`http://<host>:<port>/mcp`:
 
 ```bash
 oura-mcp-server serve --transport http --host 0.0.0.0 --port 8000
-# endpoint: http://<host>:8000/mcp
 ```
 
-Point an HTTP-capable MCP client at that URL.
-
-**Auth is fail-closed.** The HTTP transport refuses to start unless
-`OURA_MCP_AUTH_TOKEN` is set — a secret bearer token clients must send as
-`Authorization: Bearer <token>`. Requests without it (or with the wrong token)
-get `401`. Comma-separate multiple tokens to rotate keys. For local testing only,
-`OURA_MCP_ALLOW_NO_AUTH=true` runs it open. Generate a token with:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
+**Auth is fail-closed:** it refuses to start unless `OURA_MCP_AUTH_TOKEN` is set;
+clients must send it as `Authorization: Bearer <token>`. Comma-separate multiple
+tokens to grant/rotate keys individually. (`OURA_MCP_ALLOW_NO_AUTH=true` runs it
+open, for local testing only.)
 
 ### Deploy to Railway
 
-The repo ships a lightweight `Dockerfile` and `railway.json`, so Railway builds
-and runs the HTTP server directly. Locked to your credentials via
-`OURA_MCP_AUTH_TOKEN`.
+The repo ships a `Dockerfile` and `railway.json`, so Railway builds and runs the
+HTTP server directly:
 
 ```bash
-# one-time
 railway login
-railway init                      # or: railway link  (existing project)
-
-# set secrets (do NOT commit these)
+railway init
 railway variables --set "OURA_MCP_AUTH_TOKEN=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
-railway variables --set "OURA_CLIENT_ID=..." --set "OURA_CLIENT_SECRET=..."
-# provide the Oura token itself — either a long-lived legacy PAT:
-railway variables --set "OURA_ACCESS_TOKEN=..."
-# or (OAuth) the refresh token from ~/.oura-mcp/tokens.json, so the server
-# can mint fresh access tokens forever:
-railway variables --set "OURA_REFRESH_TOKEN=..."
-
-railway up                        # build + deploy
-railway domain                    # get the public https URL
+railway variables --set "OURA_CLIENT_ID=..." --set "OURA_CLIENT_SECRET=..." \
+                  --set "OURA_REFRESH_TOKEN=..."   # refresh_token from ~/.oura-mcp/tokens.json
+railway up
+railway domain
 ```
 
-Railway injects `PORT`; the container binds `0.0.0.0` automatically. Your MCP
-endpoint is `https://<your-app>.up.railway.app/mcp`, reachable only with your
-`OURA_MCP_AUTH_TOKEN`.
+The `login` flow is interactive, so containers authenticate via env instead: with
+`OURA_REFRESH_TOKEN` + client credentials set, the server mints and refreshes its
+own access tokens. (A static `OURA_ACCESS_TOKEN` also works, but only a legacy PAT
+is long-lived enough on its own.) Railway injects `PORT`; your MCP endpoint is
+`https://<app>.up.railway.app/mcp`.
 
-> **Note on Oura auth in a container:** the OAuth `login` flow is interactive
-> (browser loopback), so for a headless deployment run `login` locally and copy
-> `refresh_token` from `~/.oura-mcp/tokens.json` into `OURA_REFRESH_TOKEN`.
-> With `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` also set, the server mints and
-> auto-refreshes its own access tokens. (`OURA_ACCESS_TOKEN` alone also works,
-> but an OAuth access token expires within a day — only a legacy PAT is
-> long-lived enough on its own.)
+Connect a client:
 
-## Webhooks
-
-`create_webhook_subscription` registers a push subscription so Oura notifies a
-callback URL when new data of a `data_type` (e.g. `daily_sleep`, `workout`) is
-created/updated/deleted. Two things to know:
-
-- **App credentials, not a user token.** Webhook calls use `OURA_CLIENT_ID` /
-  `OURA_CLIENT_SECRET` (also saved by `oura-mcp-server login`).
-- **Verification handshake.** On create, Oura sends a GET to your `callback_url`
-  with a `challenge`; your endpoint must echo it back as JSON `{"challenge": ...}`.
-  So stand up a publicly reachable callback first. Subscriptions expire —
-  `renew_webhook_subscription` extends them.
+```bash
+claude mcp add -s user --transport http oura https://<app>.up.railway.app/mcp \
+  --header "Authorization: Bearer <OURA_MCP_AUTH_TOKEN>"
+```
 
 ## Development
 
 ```bash
 uv pip install -e ".[dev]"
-ruff check .      # lint (import order, pyflakes, pycodestyle, bugbear, pyupgrade)
-ruff format .     # auto-format (check-only in CI: `ruff format --check .`)
-pytest            # HTTP layer mocked with respx; no token or network needed
+ruff check . && ruff format --check .   # lint + format (CI gates on both)
+pytest                                  # HTTP mocked with respx; no token needed
 ```
-
-CI gates on `ruff check`, `ruff format --check`, and the test matrix on every
-push/PR. The web SessionStart hook installs `ruff` too and prints the lint +
-format status at startup (non-blocking).
-
-Layout:
-
-```
-src/oura_mcp_server/
-  auth.py      # token sources: static (env) + auto-refreshing OAuth store
-  oauth.py     # `login` loopback authorization-code flow
-  client.py    # async httpx client: bearer auth, pagination, 401-refresh retry
-  analytics.py # per-day records, trend stats, Pearson correlation
-  webhook.py   # webhook subscription client (app-credential auth)
-  server.py    # FastMCP app: raw + analytics + webhook tools, prompts
-  __main__.py  # `oura-mcp-server` entry point (serve [--transport] / login)
-tests/         # respx-mocked; no token or network needed
-Dockerfile     # lightweight image for HTTP deployment (Railway, etc.)
-railway.json   # Railway build/deploy config
-.github/workflows/  # CI (tests on 3.10-3.12) + PyPI publish (trusted publishing)
-```
-
-CI runs the suite on every push/PR. A tagged release (`v*`) builds and publishes
-to PyPI via Trusted Publishing — configure this repo as a trusted publisher at
-<https://pypi.org/manage/account/publishing/> first (no API token needed).
-
-## Roadmap
-
-- [x] `login` command automating the OAuth2 authorization-code flow + token refresh
-- [x] Derived analytics tools (daily briefing, trends, correlations)
-- [x] Analysis prompt templates
-- [x] Webhook subscription tools for push updates
-- [x] Remote/HTTP transport option for hosted deployment
-- [x] PyPI publish workflow (Trusted Publishing) — run a release to ship `uvx oura-mcp-server`
-
-## Disclaimer
-
-Unofficial. Not affiliated with, endorsed by, or supported by Ōura Health Oy.
-Provided as-is; verify anything health-related with the Oura app and a
-professional.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE). Unofficial; not affiliated with Ōura Health Oy.
+Verify anything health-related with the Oura app and a professional.
