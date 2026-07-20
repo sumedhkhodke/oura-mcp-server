@@ -6,6 +6,7 @@ Subcommands:
 """
 
 import argparse
+import os
 import sys
 
 
@@ -15,8 +16,14 @@ def _serve(argv: list[str]) -> None:
         "--transport", choices=["stdio", "http"], default="stdio",
         help="stdio (default, for Claude Desktop/Code) or http (remote/hosted).",
     )
-    parser.add_argument("--host", default="127.0.0.1", help="Host for --transport http.")
-    parser.add_argument("--port", type=int, default=8000, help="Port for --transport http.")
+    parser.add_argument(
+        "--host", default=os.environ.get("HOST", "127.0.0.1"),
+        help="Host for --transport http (env HOST; default 127.0.0.1).",
+    )
+    parser.add_argument(
+        "--port", type=int, default=int(os.environ.get("PORT", "8000")),
+        help="Port for --transport http (env PORT; default 8000). Railway sets PORT.",
+    )
     args = parser.parse_args(argv)
 
     from .server import run

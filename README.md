@@ -163,8 +163,48 @@ oura-mcp-server serve --transport http --host 0.0.0.0 --port 8000
 # endpoint: http://<host>:8000/mcp
 ```
 
-Point an HTTP-capable MCP client at that URL. Put it behind TLS/auth for any
-non-local exposure — it serves your Oura data.
+Point an HTTP-capable MCP client at that URL.
+
+**Auth is fail-closed.** The HTTP transport refuses to start unless
+`OURA_MCP_AUTH_TOKEN` is set — a secret bearer token clients must send as
+`Authorization: Bearer <token>`. Requests without it (or with the wrong token)
+get `401`. Comma-separate multiple tokens to rotate keys. For local testing only,
+`OURA_MCP_ALLOW_NO_AUTH=true` runs it open. Generate a token with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Deploy to Railway
+
+The repo ships a lightweight `Dockerfile` and `railway.json`, so Railway builds
+and runs the HTTP server directly. Locked to your credentials via
+`OURA_MCP_AUTH_TOKEN`.
+
+```bash
+# one-time
+railway login
+railway init                      # or: railway link  (existing project)
+
+# set secrets (do NOT commit these)
+railway variables --set "OURA_MCP_AUTH_TOKEN=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+railway variables --set "OURA_CLIENT_ID=..." --set "OURA_CLIENT_SECRET=..."
+# provide the Oura token itself — simplest is a bearer token:
+railway variables --set "OURA_ACCESS_TOKEN=..."   # legacy PAT, or an OAuth access token
+
+railway up                        # build + deploy
+railway domain                    # get the public https URL
+```
+
+Railway injects `PORT`; the container binds `0.0.0.0` automatically. Your MCP
+endpoint is `https://<your-app>.up.railway.app/mcp`, reachable only with your
+`OURA_MCP_AUTH_TOKEN`.
+
+> **Note on Oura auth in a container:** the OAuth `login` flow is interactive
+> (browser loopback), so for a headless deployment provide a token directly via
+> `OURA_ACCESS_TOKEN`, or run `login` locally and copy the resulting
+> `~/.oura-mcp/tokens.json` values into Railway variables. Auto-refresh needs
+> `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` set too.
 
 ## Webhooks
 
@@ -202,6 +242,8 @@ src/oura_mcp_server/
   server.py    # FastMCP app: raw + analytics + webhook tools, prompts
   __main__.py  # `oura-mcp-server` entry point (serve [--transport] / login)
 tests/         # respx-mocked; no token or network needed
+Dockerfile     # lightweight image for HTTP deployment (Railway, etc.)
+railway.json   # Railway build/deploy config
 .github/workflows/  # CI (tests on 3.10-3.12) + PyPI publish (trusted publishing)
 ```
 

@@ -9,6 +9,8 @@ Dates are ISO ``YYYY-MM-DD``. Heart rate uses ISO 8601 datetimes.
 
 from __future__ import annotations
 
+import logging
+import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -17,6 +19,8 @@ from fastmcp import FastMCP
 from . import analytics
 from .analytics import METRIC_KEYS
 from .client import OuraClient, OuraError
+
+logger = logging.getLogger("oura_mcp_server")
 
 mcp = FastMCP(
     name="oura-mcp-server",
@@ -411,14 +415,51 @@ async def delete_webhook_subscription(subscription_id: str) -> dict[str, Any]:
     return await _with_webhook_client(lambda wc: wc.delete(subscription_id))
 
 
+def build_auth_from_env():
+    """Build a bearer-token verifier from ``OURA_MCP_AUTH_TOKEN``.
+
+    Returns a ``StaticTokenVerifier`` that accepts a single API key (your
+    credential) as ``Authorization: Bearer <token>``, or ``None`` if no token is
+    configured. Comma-separated tokens are all accepted (e.g. to rotate keys).
+    """
+    raw = os.environ.get("OURA_MCP_AUTH_TOKEN", "").strip()
+    if not raw:
+        return None
+    from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
+
+    tokens = {
+        tok.strip(): {"client_id": "oura-owner", "scopes": []}
+        for tok in raw.split(",")
+        if tok.strip()
+    }
+    return StaticTokenVerifier(tokens)
+
+
 def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
     """Run the server.
 
     ``transport='stdio'`` (default) is what Claude Desktop/Code launch. Use
     ``transport='http'`` for a remote/hosted deployment reachable over the
     network (Streamable HTTP at http://host:port/mcp).
+
+    The HTTP transport is **fail-closed**: it requires ``OURA_MCP_AUTH_TOKEN`` so
+    only requests bearing your credential are served. Set
+    ``OURA_MCP_ALLOW_NO_AUTH=true`` to intentionally run it open (local testing).
     """
     if transport == "http":
+        auth = build_auth_from_env()
+        if auth is None and os.environ.get("OURA_MCP_ALLOW_NO_AUTH", "").lower() != "true":
+            raise SystemExit(
+                "Refusing to start an unauthenticated HTTP server. Set "
+                "OURA_MCP_AUTH_TOKEN to a secret bearer token (clients must send "
+                "it as 'Authorization: Bearer <token>'), or set "
+                "OURA_MCP_ALLOW_NO_AUTH=true to override for local testing."
+            )
+        if auth is not None:
+            mcp.auth = auth
+            logger.info("HTTP transport: bearer-token auth enabled.")
+        else:
+            logger.warning("HTTP transport: running WITHOUT auth (OURA_MCP_ALLOW_NO_AUTH).")
         mcp.run(transport="http", host=host, port=port)
     else:
         mcp.run()
