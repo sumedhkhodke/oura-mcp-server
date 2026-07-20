@@ -1,11 +1,27 @@
 """Entry point: ``python -m oura_mcp_server`` / ``oura-mcp-server``.
 
 Subcommands:
-  (default) / serve   Run the MCP server over stdio.
+  (default) / serve   Run the MCP server (stdio by default, or --transport http).
   login               Authenticate with Oura via OAuth2 and store tokens.
 """
 
+import argparse
 import sys
+
+
+def _serve(argv: list[str]) -> None:
+    parser = argparse.ArgumentParser(prog="oura-mcp-server serve")
+    parser.add_argument(
+        "--transport", choices=["stdio", "http"], default="stdio",
+        help="stdio (default, for Claude Desktop/Code) or http (remote/hosted).",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="Host for --transport http.")
+    parser.add_argument("--port", type=int, default=8000, help="Port for --transport http.")
+    args = parser.parse_args(argv)
+
+    from .server import run
+
+    run(transport=args.transport, host=args.host, port=args.port)
 
 
 def main() -> None:
@@ -17,15 +33,12 @@ def main() -> None:
 
         raise SystemExit(login_command(argv[1:]))
 
-    if command in ("serve", "run"):
-        argv = argv[1:]  # allow explicit `serve`
     if command in ("-h", "--help", "help"):
         print(__doc__)
         raise SystemExit(0)
 
-    from .server import run
-
-    run()
+    rest = argv[1:] if command in ("serve", "run") else argv
+    _serve(rest)
 
 
 if __name__ == "__main__":

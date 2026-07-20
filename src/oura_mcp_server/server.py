@@ -352,6 +352,73 @@ def sleep_optimization() -> str:
     )
 
 
-def run() -> None:
-    """Run the server over stdio (the transport Claude Desktop uses)."""
-    mcp.run()
+# --------------------------------------------------------------------------- #
+# Webhook subscription management (push updates)
+# --------------------------------------------------------------------------- #
+
+async def _with_webhook_client(coro_factory) -> dict[str, Any]:
+    from .webhook import WebhookClient
+
+    try:
+        wc = WebhookClient()
+    except OuraError as exc:
+        return {"error": str(exc)}
+    try:
+        result = await coro_factory(wc)
+        return {"result": result}
+    except OuraError as exc:
+        return {"error": str(exc)}
+    finally:
+        await wc.aclose()
+
+
+@mcp.tool
+async def list_webhook_subscriptions() -> dict[str, Any]:
+    """List the account's active Oura webhook subscriptions."""
+    return await _with_webhook_client(lambda wc: wc.list())
+
+
+@mcp.tool
+async def create_webhook_subscription(
+    callback_url: str, verification_token: str, event_type: str, data_type: str
+) -> dict[str, Any]:
+    """Create a webhook subscription so Oura pushes updates to your callback URL.
+
+    `event_type` is one of create/update/delete. `data_type` is a resource like
+    daily_sleep, daily_readiness, workout, sleep, tag, etc. Oura verifies the
+    subscription by sending a challenge GET to `callback_url` that your server
+    must echo — so your callback endpoint must be publicly reachable first."""
+    from .webhook import DATA_TYPES, EVENT_TYPES
+
+    if event_type not in EVENT_TYPES:
+        return {"error": f"event_type must be one of {EVENT_TYPES}"}
+    if data_type not in DATA_TYPES:
+        return {"error": f"data_type must be one of {DATA_TYPES}"}
+    return await _with_webhook_client(
+        lambda wc: wc.create(callback_url, verification_token, event_type, data_type)
+    )
+
+
+@mcp.tool
+async def renew_webhook_subscription(subscription_id: str) -> dict[str, Any]:
+    """Renew a webhook subscription before it expires."""
+    return await _with_webhook_client(lambda wc: wc.renew(subscription_id))
+
+
+@mcp.tool
+async def delete_webhook_subscription(subscription_id: str) -> dict[str, Any]:
+    """Delete a webhook subscription by id."""
+    return await _with_webhook_client(lambda wc: wc.delete(subscription_id))
+
+
+def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
+    """Run the server.
+
+    ``transport='stdio'`` (default) is what Claude Desktop/Code launch. Use
+    ``transport='http'`` for a remote/hosted deployment reachable over the
+    network (Streamable HTTP at http://host:port/mcp).
+    """
+    if transport == "http":
+        mcp.run(transport="http", host=host, port=port)
+    else:
+        mcp.run()

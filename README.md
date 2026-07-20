@@ -47,6 +47,18 @@ Metrics available to the analytics tools: `sleep_score`, `readiness_score`,
 `activity_score`, `total_sleep_hours`, `sleep_efficiency`, `resting_heart_rate`,
 `average_hrv`, `temperature_deviation`, `steps`, `active_calories`.
 
+**Webhook tools** — manage Oura push subscriptions (Oura POSTs to your callback
+when new data arrives, instead of polling). These use your OAuth **app**
+credentials, and creating one requires a publicly reachable callback that echoes
+Oura's verification challenge — see [Webhooks](#webhooks).
+
+| Tool | What it does |
+| --- | --- |
+| `list_webhook_subscriptions` | List active subscriptions |
+| `create_webhook_subscription` | Subscribe (`callback_url`, `verification_token`, `event_type`, `data_type`) |
+| `renew_webhook_subscription` | Renew before expiry |
+| `delete_webhook_subscription` | Remove a subscription |
+
 **Prompts** — ready-made analyses you can pick from the MCP client's prompt menu:
 `analyze_recovery`, `weekly_review`, `sleep_optimization`.
 
@@ -141,6 +153,32 @@ Restart Claude Desktop and ask, e.g., *"How did I sleep this week?"* or
 claude mcp add oura -- uv --directory /absolute/path/to/oura-mcp-server run oura-mcp-server
 ```
 
+### Remote / HTTP transport
+
+For a hosted deployment (reachable over the network instead of launched per
+client), run the Streamable HTTP transport:
+
+```bash
+oura-mcp-server serve --transport http --host 0.0.0.0 --port 8000
+# endpoint: http://<host>:8000/mcp
+```
+
+Point an HTTP-capable MCP client at that URL. Put it behind TLS/auth for any
+non-local exposure — it serves your Oura data.
+
+## Webhooks
+
+`create_webhook_subscription` registers a push subscription so Oura notifies a
+callback URL when new data of a `data_type` (e.g. `daily_sleep`, `workout`) is
+created/updated/deleted. Two things to know:
+
+- **App credentials, not a user token.** Webhook calls use `OURA_CLIENT_ID` /
+  `OURA_CLIENT_SECRET` (also saved by `oura-mcp-server login`).
+- **Verification handshake.** On create, Oura sends a GET to your `callback_url`
+  with a `challenge`; your endpoint must echo it back as JSON `{"challenge": ...}`.
+  So stand up a publicly reachable callback first. Subscriptions expire —
+  `renew_webhook_subscription` extends them.
+
 ## Development
 
 ```bash
@@ -156,19 +194,25 @@ src/oura_mcp_server/
   oauth.py     # `login` loopback authorization-code flow
   client.py    # async httpx client: bearer auth, pagination, 401-refresh retry
   analytics.py # per-day records, trend stats, Pearson correlation
-  server.py    # FastMCP app: raw + analytics tools, prompt templates
-  __main__.py  # `oura-mcp-server` entry point (serve / login)
+  webhook.py   # webhook subscription client (app-credential auth)
+  server.py    # FastMCP app: raw + analytics + webhook tools, prompts
+  __main__.py  # `oura-mcp-server` entry point (serve [--transport] / login)
 tests/         # respx-mocked; no token or network needed
+.github/workflows/  # CI (tests on 3.10-3.12) + PyPI publish (trusted publishing)
 ```
+
+CI runs the suite on every push/PR. A tagged release (`v*`) builds and publishes
+to PyPI via Trusted Publishing — configure this repo as a trusted publisher at
+<https://pypi.org/manage/account/publishing/> first (no API token needed).
 
 ## Roadmap
 
 - [x] `login` command automating the OAuth2 authorization-code flow + token refresh
 - [x] Derived analytics tools (daily briefing, trends, correlations)
 - [x] Analysis prompt templates
-- [ ] Webhook subscription tools for push updates
-- [ ] Remote/HTTP transport option for hosted deployment
-- [ ] Publish to PyPI for `uvx oura-mcp-server`
+- [x] Webhook subscription tools for push updates
+- [x] Remote/HTTP transport option for hosted deployment
+- [x] PyPI publish workflow (Trusted Publishing) — run a release to ship `uvx oura-mcp-server`
 
 ## Disclaimer
 
