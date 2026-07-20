@@ -189,8 +189,11 @@ railway init                      # or: railway link  (existing project)
 # set secrets (do NOT commit these)
 railway variables --set "OURA_MCP_AUTH_TOKEN=$(python -c 'import secrets;print(secrets.token_urlsafe(32))')"
 railway variables --set "OURA_CLIENT_ID=..." --set "OURA_CLIENT_SECRET=..."
-# provide the Oura token itself — simplest is a bearer token:
-railway variables --set "OURA_ACCESS_TOKEN=..."   # legacy PAT, or an OAuth access token
+# provide the Oura token itself — either a long-lived legacy PAT:
+railway variables --set "OURA_ACCESS_TOKEN=..."
+# or (OAuth) the refresh token from ~/.oura-mcp/tokens.json, so the server
+# can mint fresh access tokens forever:
+railway variables --set "OURA_REFRESH_TOKEN=..."
 
 railway up                        # build + deploy
 railway domain                    # get the public https URL
@@ -201,10 +204,12 @@ endpoint is `https://<your-app>.up.railway.app/mcp`, reachable only with your
 `OURA_MCP_AUTH_TOKEN`.
 
 > **Note on Oura auth in a container:** the OAuth `login` flow is interactive
-> (browser loopback), so for a headless deployment provide a token directly via
-> `OURA_ACCESS_TOKEN`, or run `login` locally and copy the resulting
-> `~/.oura-mcp/tokens.json` values into Railway variables. Auto-refresh needs
-> `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` set too.
+> (browser loopback), so for a headless deployment run `login` locally and copy
+> `refresh_token` from `~/.oura-mcp/tokens.json` into `OURA_REFRESH_TOKEN`.
+> With `OURA_CLIENT_ID`/`OURA_CLIENT_SECRET` also set, the server mints and
+> auto-refreshes its own access tokens. (`OURA_ACCESS_TOKEN` alone also works,
+> but an OAuth access token expires within a day — only a legacy PAT is
+> long-lived enough on its own.)
 
 ## Webhooks
 

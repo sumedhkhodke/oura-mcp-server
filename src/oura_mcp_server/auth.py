@@ -161,8 +161,37 @@ class OAuthTokenSource(TokenSource):
 
 
 def default_token_source() -> TokenSource:
-    """Resolve the auth strategy: env var first, then the OAuth token file."""
+    """Resolve the auth strategy.
+
+    Precedence:
+
+    1. ``OURA_REFRESH_TOKEN`` + ``OURA_CLIENT_ID`` + ``OURA_CLIENT_SECRET`` in
+       the env — headless refresh mode for deployments (containers) where
+       ``oura-mcp-server login`` can't run. Seeds a refreshable source from the
+       env (plus ``OURA_ACCESS_TOKEN`` if given); refreshed tokens persist to
+       the token file, which then wins on later resolutions.
+    2. ``OURA_ACCESS_TOKEN`` alone — a static bearer (legacy PAT); can't refresh.
+    3. The token file written by ``oura-mcp-server login``.
+    """
     env_token = os.environ.get("OURA_ACCESS_TOKEN")
+    refresh_token = os.environ.get("OURA_REFRESH_TOKEN")
+    client_id = os.environ.get("OURA_CLIENT_ID")
+    client_secret = os.environ.get("OURA_CLIENT_SECRET")
+    if refresh_token and client_id and client_secret:
+        # Headless refresh mode: an existing file (rotated by a previous
+        # refresh) wins over the env seed.
+        stored = load_token()
+        if stored:
+            return OAuthTokenSource(stored)
+        seed = StoredToken(
+            access_token=env_token or "",
+            refresh_token=refresh_token,
+            # No access token → mark expired so the first use refreshes eagerly.
+            expires_at=None if env_token else 0,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
+        return OAuthTokenSource(seed)
     if env_token:
         return StaticTokenSource(env_token)
     stored = load_token()

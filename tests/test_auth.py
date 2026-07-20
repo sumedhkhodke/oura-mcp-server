@@ -93,6 +93,58 @@ def test_default_source_prefers_env(monkeypatch):
     assert isinstance(src, auth.StaticTokenSource)
 
 
+def test_default_source_env_refresh_creds_build_oauth_source(monkeypatch, tmp_path):
+    """Headless deployments: OURA_REFRESH_TOKEN (+ client creds) in env → refreshable source."""
+    monkeypatch.delenv("OURA_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "tokens.json"))
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "env-rt")
+    monkeypatch.setenv("OURA_CLIENT_ID", "env-cid")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "env-sec")
+    src = auth.default_token_source()
+    assert isinstance(src, auth.OAuthTokenSource)
+    # no access token given → must refresh before first use
+    assert src._token.is_expired()
+    assert src._token.refresh_token == "env-rt"
+
+
+def test_default_source_env_refresh_with_access_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "env-at")
+    monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "tokens.json"))
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "env-rt")
+    monkeypatch.setenv("OURA_CLIENT_ID", "env-cid")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "env-sec")
+    src = auth.default_token_source()
+    assert isinstance(src, auth.OAuthTokenSource)
+    assert src._token.access_token == "env-at"
+    assert not src._token.is_expired()  # use it until it 401s, then refresh
+
+
+def test_default_source_env_refresh_prefers_existing_file(monkeypatch, tmp_path):
+    """A token file (rotated by an earlier refresh) wins over the env seed."""
+    path = tmp_path / "tokens.json"
+    auth.save_token(
+        auth.StoredToken(access_token="file-at", refresh_token="file-rt", client_id="cid", client_secret="sec"),
+        path,
+    )
+    monkeypatch.delenv("OURA_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("OURA_TOKEN_FILE", str(path))
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "env-rt")
+    monkeypatch.setenv("OURA_CLIENT_ID", "env-cid")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "env-sec")
+    src = auth.default_token_source()
+    assert isinstance(src, auth.OAuthTokenSource)
+    assert src._token.access_token == "file-at"
+    assert src._token.refresh_token == "file-rt"
+
+
+def test_default_source_static_env_token_unchanged(monkeypatch):
+    """OURA_ACCESS_TOKEN alone (legacy PAT) still yields a static source."""
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "envtok")
+    monkeypatch.delenv("OURA_REFRESH_TOKEN", raising=False)
+    src = auth.default_token_source()
+    assert isinstance(src, auth.StaticTokenSource)
+
+
 def test_default_source_errors_without_anything(monkeypatch, tmp_path):
     monkeypatch.delenv("OURA_ACCESS_TOKEN", raising=False)
     monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "none.json"))
