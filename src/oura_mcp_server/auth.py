@@ -68,7 +68,7 @@ class StoredToken:
         client_id: str | None = None,
         client_secret: str | None = None,
         fallback_refresh_token: str | None = None,
-    ) -> "StoredToken":
+    ) -> StoredToken:
         expires_in = payload.get("expires_in")
         expires_at = time.time() + float(expires_in) if expires_in else None
         return cls(

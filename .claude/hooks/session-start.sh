@@ -16,8 +16,14 @@ if ! command -v uv >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Install the package + dev deps into the system environment so `pytest` and
-# `oura-mcp-server` work without activating a venv. Idempotent; re-runnable.
+# Install the package + dev deps (pytest, ruff, ...) into the system environment
+# so `pytest`, `ruff`, and `oura-mcp-server` work without activating a venv.
+# Idempotent; re-runnable.
 uv pip install --system -e ".[dev]"
+
+# Surface the ruff lint status at startup. Non-fatal: a lint finding must not
+# block the session from starting (set -e would otherwise abort here).
+echo "session-start: running ruff lint (informational)..."
+ruff check . || echo "session-start: ruff reported issues (see above); not blocking startup."
 
 echo "session-start: oura-mcp-server dev environment ready."

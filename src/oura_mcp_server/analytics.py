@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from .client import OuraClient
 
@@ -140,7 +140,7 @@ def pearson(xs: list[float], ys: list[float]) -> float | None:
         return None
     mx = sum(xs) / n
     my = sum(ys) / n
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
     vx = sum((x - mx) ** 2 for x in xs)
     vy = sum((y - my) ** 2 for y in ys)
     if vx == 0 or vy == 0:

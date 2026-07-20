@@ -49,7 +49,13 @@ def client_credentials() -> tuple[str, str]:
 class WebhookClient:
     """Async wrapper over the Oura webhook subscription endpoints."""
 
-    def __init__(self, client_id: str | None = None, client_secret: str | None = None, *, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        *,
+        timeout: float = 30.0,
+    ) -> None:
         if client_id is None or client_secret is None:
             client_id, client_secret = client_credentials()
         self._client = httpx.AsyncClient(
