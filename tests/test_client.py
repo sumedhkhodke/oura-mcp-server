@@ -46,9 +46,12 @@ async def test_401_raises_readable_error(client):
     await client.aclose()
 
 
-def test_missing_token_raises(monkeypatch):
+def test_missing_token_raises(monkeypatch, tmp_path):
+    from oura_mcp_server.auth import AuthError
+
     monkeypatch.delenv("OURA_ACCESS_TOKEN", raising=False)
-    with pytest.raises(OuraError, match="No Oura access token"):
+    monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "none.json"))
+    with pytest.raises(AuthError, match="No Oura credentials"):
         OuraClient()
 
 

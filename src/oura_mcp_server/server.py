@@ -14,6 +14,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from . import analytics
+from .analytics import METRIC_KEYS
 from .client import OuraClient, OuraError
 
 mcp = FastMCP(
@@ -224,6 +226,130 @@ async def get_ring_configuration() -> dict[str, Any]:
     except OuraError as exc:
         return {"error": str(exc), "endpoint": "ring_configuration"}
     return {"endpoint": "ring_configuration", "count": len(data), "data": data}
+
+
+# --------------------------------------------------------------------------- #
+# Derived analytics (briefing, trends, correlations)
+# --------------------------------------------------------------------------- #
+
+@mcp.tool
+async def get_daily_briefing(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
+    """Combined day-by-day recovery briefing: Sleep/Readiness/Activity scores
+    plus total sleep hours, resting heart rate, average HRV, temperature
+    deviation, steps, and active calories for each day. The 'how am I doing?'
+    tool — one call instead of stitching several endpoints together. Defaults
+    to the last 7 days."""
+    dates = _default_dates(start_date, end_date)
+    try:
+        records = await analytics.build_daily_records(
+            _get_client(), dates["start_date"], dates["end_date"]
+        )
+    except OuraError as exc:
+        return {"error": str(exc)}
+    return {
+        "start_date": dates["start_date"],
+        "end_date": dates["end_date"],
+        "days": len(records),
+        "briefing": list(records.values()),
+    }
+
+
+@mcp.tool
+async def get_metric_trend(
+    metric: str, days: int = 14, end_date: str | None = None
+) -> dict[str, Any]:
+    """Trend statistics for one metric over the last N days: mean, min, max,
+    first-vs-last change, delta from the mean, and direction.
+
+    `metric` must be one of: sleep_score, readiness_score, activity_score,
+    total_sleep_hours, sleep_efficiency, resting_heart_rate, average_hrv,
+    temperature_deviation, steps, active_calories."""
+    if metric not in METRIC_KEYS:
+        return {"error": f"unknown metric '{metric}'", "valid_metrics": METRIC_KEYS}
+    start, end = analytics.date_window(days, end_date)
+    try:
+        records = await analytics.build_daily_records(_get_client(), start, end)
+    except OuraError as exc:
+        return {"error": str(exc)}
+    result = analytics.summarize_metric(records, metric)
+    result["start_date"] = start
+    result["end_date"] = end
+    result["series"] = [
+        {"day": d, metric: r.get(metric)} for d, r in records.items() if r.get(metric) is not None
+    ]
+    return result
+
+
+@mcp.tool
+async def get_metric_correlation(
+    metric_a: str,
+    metric_b: str,
+    days: int = 30,
+    lag_days: int = 0,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    """Pearson correlation between two metrics over the last N days.
+
+    Set `lag_days` to relate metric_a on a given day to metric_b that many days
+    later — e.g. metric_a='total_sleep_hours', metric_b='readiness_score',
+    lag_days=1 answers "how does last night's sleep affect tomorrow's
+    readiness?". Valid metrics: sleep_score, readiness_score, activity_score,
+    total_sleep_hours, sleep_efficiency, resting_heart_rate, average_hrv,
+    temperature_deviation, steps, active_calories."""
+    for m in (metric_a, metric_b):
+        if m not in METRIC_KEYS:
+            return {"error": f"unknown metric '{m}'", "valid_metrics": METRIC_KEYS}
+    start, end = analytics.date_window(days, end_date)
+    try:
+        records = await analytics.build_daily_records(_get_client(), start, end)
+    except OuraError as exc:
+        return {"error": str(exc)}
+    result = analytics.correlate(records, metric_a, metric_b, lag_days)
+    result["start_date"] = start
+    result["end_date"] = end
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# Analysis prompt templates
+# --------------------------------------------------------------------------- #
+
+@mcp.prompt
+def analyze_recovery(days: int = 7) -> str:
+    """Analyze the user's recovery over the last N days."""
+    return (
+        f"Analyze my Oura recovery over the last {days} days. Call "
+        f"get_daily_briefing for the period, then get_metric_trend for "
+        "readiness_score, average_hrv, and resting_heart_rate. Summarize how "
+        "recovered I am, call out any concerning trends (rising resting HR, "
+        "falling HRV, temperature deviations), and give one concrete "
+        "recommendation for tomorrow."
+    )
+
+
+@mcp.prompt
+def weekly_review() -> str:
+    """Produce a full weekly sleep, activity, and recovery review."""
+    return (
+        "Give me a weekly review from my Oura data. Use get_daily_briefing for "
+        "the last 7 days, then get_metric_trend for sleep_score, "
+        "readiness_score, activity_score, and total_sleep_hours. Highlight my "
+        "best and worst nights, my activity consistency, and whether I'm "
+        "trending up or down. Keep it to a short, skimmable summary with "
+        "specific numbers."
+    )
+
+
+@mcp.prompt
+def sleep_optimization() -> str:
+    """Investigate what most affects the user's sleep and readiness."""
+    return (
+        "Help me optimize my sleep. Use get_metric_correlation to test how "
+        "total_sleep_hours (lag_days=1) relates to readiness_score, how steps "
+        "relates to total_sleep_hours, and how average_hrv relates to "
+        "readiness_score over the last 30 days. Explain which factors most "
+        "influence my recovery and what I should change."
+    )
 
 
 def run() -> None:

@@ -12,8 +12,8 @@ tools so Claude (or any MCP client) can read and reason over your Oura data.
 
 ## Tools
 
-All date-range tools accept `start_date` / `end_date` (ISO `YYYY-MM-DD`) and
-**default to the last 7 days** when omitted.
+**Raw endpoint tools** — all date-range tools accept `start_date` / `end_date`
+(ISO `YYYY-MM-DD`) and **default to the last 7 days** when omitted.
 
 | Tool | Oura endpoint | What you get |
 | --- | --- | --- |
@@ -35,24 +35,54 @@ All date-range tools accept `start_date` / `end_date` (ISO `YYYY-MM-DD`) and
 | `get_personal_info` | `personal_info` | Profile: age, sex, height, weight |
 | `get_ring_configuration` | `ring_configuration` | Ring model, hardware, color, size, firmware |
 
-## Getting an access token
+**Analytics tools** — derived insights that stitch several endpoints together.
 
-The server authenticates with a single **bearer token** in `OURA_ACCESS_TOKEN`.
-There are two ways to get one:
+| Tool | What you get |
+| --- | --- |
+| `get_daily_briefing` | One combined per-day summary: Sleep/Readiness/Activity scores + total sleep hours, resting HR, average HRV, temperature deviation, steps, active calories. The "how am I doing?" tool. |
+| `get_metric_trend` | Mean/min/max, first-vs-last change, delta-from-mean, and direction for one metric over the last N days. |
+| `get_metric_correlation` | Pearson correlation between two metrics, with optional day-lag — e.g. "how does last night's sleep affect tomorrow's readiness?" |
 
-1. **Legacy Personal Access Token (PAT)** — the easy path, *if you already have
-   one*. Oura **deprecated new PATs in December 2025**, so you can no longer
-   create one, but tokens minted before then still work. Manage existing tokens
-   at <https://cloud.ouraring.com/personal-access-tokens>.
+Metrics available to the analytics tools: `sleep_score`, `readiness_score`,
+`activity_score`, `total_sleep_hours`, `sleep_efficiency`, `resting_heart_rate`,
+`average_hrv`, `temperature_deviation`, `steps`, `active_calories`.
 
-2. **OAuth2** (required for new integrations) — register an application at
-   <https://cloud.ouraring.com/oauth/applications>, then run the authorization
-   code flow to obtain an access token. Oura access tokens are long-lived; a
-   refresh token is also issued. (A guided `oura-mcp-server login` command that
-   automates this flow is on the roadmap below — for now, paste the access token
-   you obtain into `OURA_ACCESS_TOKEN`.)
+**Prompts** — ready-made analyses you can pick from the MCP client's prompt menu:
+`analyze_recovery`, `weekly_review`, `sleep_optimization`.
 
-Either way, the server just sends it as `Authorization: Bearer <token>`.
+## Authentication
+
+The server sends a bearer token as `Authorization: Bearer <token>`. Two ways to
+get one, resolved automatically at runtime (env var first, then the OAuth file):
+
+### OAuth2 (recommended — required for new integrations)
+
+Oura **deprecated new Personal Access Tokens in December 2025**, so OAuth2 is the
+path for anyone setting up fresh.
+
+1. Go to <https://cloud.ouraring.com/oauth/applications> and **create an
+   application**. Set the **redirect URI** to exactly:
+   ```
+   http://localhost:8080/callback
+   ```
+   (use a different port with `--port` / `OURA_REDIRECT_PORT`; the registered
+   URI must match). Note the **client ID** and **client secret**.
+2. Run the login command — it opens your browser, you approve, and tokens are
+   saved to `~/.oura-mcp/tokens.json` (chmod 600):
+   ```bash
+   oura-mcp-server login --client-id <ID> --client-secret <SECRET>
+   # or set OURA_CLIENT_ID / OURA_CLIENT_SECRET and just: oura-mcp-server login
+   ```
+3. Start the server normally. It reads the token file and **auto-refreshes** the
+   access token (using the stored refresh token) whenever it expires — no env
+   vars needed at runtime.
+
+### Legacy Personal Access Token (only if you already have one)
+
+Existing pre-Dec-2025 PATs still work. Set `OURA_ACCESS_TOKEN=<token>` and skip
+the login step. Manage existing tokens at
+<https://cloud.ouraring.com/personal-access-tokens>. (This path can't
+self-refresh, but PATs are long-lived.)
 
 > **Subscription note:** an active Oura membership is required for the API to
 > return most data. Without it you'll get the three daily scores at best.
@@ -65,13 +95,19 @@ Requires Python ≥ 3.10. Using [uv](https://docs.astral.sh/uv/):
 git clone https://github.com/sumedhkhodke/oura-mcp-server.git
 cd oura-mcp-server
 uv venv && uv pip install -e .
-cp .env.example .env   # then edit .env and set OURA_ACCESS_TOKEN
+cp .env.example .env   # fill in OAuth creds (or a legacy OURA_ACCESS_TOKEN)
 ```
 
-Quick check that your token works:
+Authenticate (OAuth2 — see [Authentication](#authentication) for app setup):
 
 ```bash
-OURA_ACCESS_TOKEN=... uv run python -c \
+uv run oura-mcp-server login --client-id <ID> --client-secret <SECRET>
+```
+
+Quick check it works (reads the saved OAuth token, or `OURA_ACCESS_TOKEN`):
+
+```bash
+uv run python -c \
   "import asyncio; from oura_mcp_server.client import OuraClient; \
    print(asyncio.run(OuraClient().get_single('personal_info')))"
 ```
@@ -79,28 +115,30 @@ OURA_ACCESS_TOKEN=... uv run python -c \
 ### Claude Desktop
 
 Add to `claude_desktop_config.json`
-(macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
+(macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`).
+After `oura-mcp-server login`, no token env var is needed — the server reads
+`~/.oura-mcp/tokens.json` and auto-refreshes:
 
 ```json
 {
   "mcpServers": {
     "oura": {
       "command": "uv",
-      "args": ["--directory", "/absolute/path/to/oura-mcp-server", "run", "oura-mcp-server"],
-      "env": { "OURA_ACCESS_TOKEN": "your_token_here" }
+      "args": ["--directory", "/absolute/path/to/oura-mcp-server", "run", "oura-mcp-server"]
     }
   }
 }
 ```
 
+Using a legacy PAT instead? Add `"env": { "OURA_ACCESS_TOKEN": "your_token" }`.
 Restart Claude Desktop and ask, e.g., *"How did I sleep this week?"* or
 *"What's my readiness trend and resting heart rate over the last 14 days?"*
 
 ### Claude Code
 
 ```bash
-claude mcp add oura --env OURA_ACCESS_TOKEN=your_token_here \
-  -- uv --directory /absolute/path/to/oura-mcp-server run oura-mcp-server
+# after `oura-mcp-server login`:
+claude mcp add oura -- uv --directory /absolute/path/to/oura-mcp-server run oura-mcp-server
 ```
 
 ## Development
@@ -114,18 +152,20 @@ Layout:
 
 ```
 src/oura_mcp_server/
-  client.py   # async httpx client: bearer auth + transparent pagination
-  server.py   # FastMCP app; one tool per Oura endpoint
-  __main__.py # `oura-mcp-server` entry point (stdio transport)
-tests/
-  test_client.py
+  auth.py      # token sources: static (env) + auto-refreshing OAuth store
+  oauth.py     # `login` loopback authorization-code flow
+  client.py    # async httpx client: bearer auth, pagination, 401-refresh retry
+  analytics.py # per-day records, trend stats, Pearson correlation
+  server.py    # FastMCP app: raw + analytics tools, prompt templates
+  __main__.py  # `oura-mcp-server` entry point (serve / login)
+tests/         # respx-mocked; no token or network needed
 ```
 
 ## Roadmap
 
-- [ ] `login` command automating the OAuth2 authorization-code flow + token refresh
-- [ ] Optional summarized/human-readable output mode (trends, deltas vs. baseline)
-- [ ] Derived analytics tools (e.g. correlate sleep vs. next-day readiness)
+- [x] `login` command automating the OAuth2 authorization-code flow + token refresh
+- [x] Derived analytics tools (daily briefing, trends, correlations)
+- [x] Analysis prompt templates
 - [ ] Webhook subscription tools for push updates
 - [ ] Remote/HTTP transport option for hosted deployment
 - [ ] Publish to PyPI for `uvx oura-mcp-server`

@@ -1,7 +1,8 @@
 """Async HTTP client for the Oura Ring v2 API.
 
-Handles bearer authentication, transparent pagination over ``next_token``,
-and turns HTTP errors into readable messages instead of raw stack traces.
+Handles bearer authentication (static token or auto-refreshing OAuth),
+transparent pagination over ``next_token``, and turns HTTP errors into readable
+messages instead of raw stack traces.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import os
 from typing import Any
 
 import httpx
+
+from .auth import AuthError, StaticTokenSource, TokenSource, default_token_source
 
 DEFAULT_BASE_URL = "https://api.ouraring.com/v2"
 
@@ -22,8 +25,8 @@ class OuraClient:
     """Thin async wrapper over the Oura v2 REST API.
 
     A single client instance is shared across all tool calls. It keeps one
-    ``httpx.AsyncClient`` (connection pooling) and injects the bearer token on
-    every request.
+    ``httpx.AsyncClient`` (connection pooling) and injects the current bearer
+    token on every request, refreshing once on a 401 when possible.
     """
 
     def __init__(
@@ -31,34 +34,47 @@ class OuraClient:
         access_token: str | None = None,
         base_url: str | None = None,
         *,
+        token_source: TokenSource | None = None,
         timeout: float = 30.0,
     ) -> None:
-        token = access_token or os.environ.get("OURA_ACCESS_TOKEN")
-        if not token:
-            raise OuraError(
-                "No Oura access token found. Set the OURA_ACCESS_TOKEN environment "
-                "variable (see .env.example)."
-            )
+        if token_source is not None:
+            self._auth = token_source
+        elif access_token is not None:
+            self._auth = StaticTokenSource(access_token)
+        else:
+            env_token = os.environ.get("OURA_ACCESS_TOKEN")
+            self._auth = StaticTokenSource(env_token) if env_token else default_token_source()
+
         self._base_url = (base_url or os.environ.get("OURA_API_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-        self._client = httpx.AsyncClient(
-            base_url=self._base_url,
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=timeout,
-        )
+        self._client = httpx.AsyncClient(base_url=self._base_url, timeout=timeout)
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
+    async def _authorized_get(self, path: str, params: dict[str, Any] | None) -> httpx.Response:
+        token = await self._auth.get()
+        resp = await self._client.get(path, params=params, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code == 401:
+            # Token may have expired mid-flight; try one refresh then retry.
+            new_token = await self._auth.force_refresh()
+            if new_token:
+                resp = await self._client.get(
+                    path, params=params, headers={"Authorization": f"Bearer {new_token}"}
+                )
+        return resp
+
     async def _request(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
-            resp = await self._client.get(path, params=params)
+            resp = await self._authorized_get(path, params)
+        except AuthError as exc:
+            raise OuraError(str(exc)) from exc
         except httpx.HTTPError as exc:  # network / timeout / DNS
             raise OuraError(f"Request to Oura failed: {exc}") from exc
 
         if resp.status_code == 401:
             raise OuraError(
-                "Oura rejected the access token (401 Unauthorized). The token may be "
-                "invalid, expired, or missing the required scope."
+                "Oura rejected the access token (401 Unauthorized). It may be invalid, "
+                "expired, or missing the required scope. Re-run `oura-mcp-server login`."
             )
         if resp.status_code == 403:
             raise OuraError(
