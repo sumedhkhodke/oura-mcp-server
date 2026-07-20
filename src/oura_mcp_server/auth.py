@@ -148,8 +148,7 @@ class OAuthTokenSource(TokenSource):
             )
         if resp.status_code >= 400:
             raise AuthError(
-                f"Token refresh failed ({resp.status_code}). Re-run "
-                f"`oura-mcp-server login`. Detail: {resp.text[:300]}"
+                f"Token refresh failed ({resp.status_code}). Re-run `oura-mcp-server login`. Detail: {resp.text[:300]}"
             )
         self._token = StoredToken.from_token_response(
             resp.json(),

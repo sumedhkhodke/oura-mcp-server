@@ -66,16 +66,43 @@ async def test_build_daily_records_merges_endpoints(monkeypatch):
         return_value=httpx.Response(200, json={"data": [{"day": "2026-07-01", "score": 75}], "next_token": None})
     )
     respx.get(f"{BASE}/usercollection/daily_readiness").mock(
-        return_value=httpx.Response(200, json={"data": [{"day": "2026-07-01", "score": 65, "temperature_deviation": 0.2}], "next_token": None})
+        return_value=httpx.Response(
+            200, json={"data": [{"day": "2026-07-01", "score": 65, "temperature_deviation": 0.2}], "next_token": None}
+        )
     )
     respx.get(f"{BASE}/usercollection/daily_activity").mock(
-        return_value=httpx.Response(200, json={"data": [{"day": "2026-07-01", "score": 88, "steps": 9000, "active_calories": 400}], "next_token": None})
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [{"day": "2026-07-01", "score": 88, "steps": 9000, "active_calories": 400}],
+                "next_token": None,
+            },
+        )
     )
     respx.get(f"{BASE}/usercollection/sleep").mock(
-        return_value=httpx.Response(200, json={"data": [
-            {"day": "2026-07-01", "type": "long_sleep", "total_sleep_duration": 28800, "efficiency": 92, "lowest_heart_rate": 48, "average_hrv": 55},
-            {"day": "2026-07-01", "type": "late_nap", "total_sleep_duration": 1800, "lowest_heart_rate": 60, "average_hrv": 40},
-        ], "next_token": None})
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "day": "2026-07-01",
+                        "type": "long_sleep",
+                        "total_sleep_duration": 28800,
+                        "efficiency": 92,
+                        "lowest_heart_rate": 48,
+                        "average_hrv": 55,
+                    },
+                    {
+                        "day": "2026-07-01",
+                        "type": "late_nap",
+                        "total_sleep_duration": 1800,
+                        "lowest_heart_rate": 60,
+                        "average_hrv": 40,
+                    },
+                ],
+                "next_token": None,
+            },
+        )
     )
     client = OuraClient()
     records = await analytics.build_daily_records(client, "2026-07-01", "2026-07-01")

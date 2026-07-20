@@ -60,9 +60,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def exchange_code_for_token(
-    client_id: str, client_secret: str, code: str, redirect_uri: str
-) -> StoredToken:
+def exchange_code_for_token(client_id: str, client_secret: str, code: str, redirect_uri: str) -> StoredToken:
     """Exchange an authorization code for an access/refresh token pair."""
     resp = httpx.post(
         OURA_TOKEN_URL,
@@ -77,9 +75,7 @@ def exchange_code_for_token(
     )
     if resp.status_code >= 400:
         raise SystemExit(f"Token exchange failed ({resp.status_code}): {resp.text[:500]}")
-    return StoredToken.from_token_response(
-        resp.json(), client_id=client_id, client_secret=client_secret
-    )
+    return StoredToken.from_token_response(resp.json(), client_id=client_id, client_secret=client_secret)
 
 
 def run_login(
@@ -95,14 +91,18 @@ def run_login(
     redirect_uri = f"http://localhost:{port}/callback"
     state = secrets.token_urlsafe(24)
 
-    authorize_url = OURA_AUTHORIZE_URL + "?" + urllib.parse.urlencode(
-        {
-            "response_type": "code",
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": " ".join(scopes),
-            "state": state,
-        }
+    authorize_url = (
+        OURA_AUTHORIZE_URL
+        + "?"
+        + urllib.parse.urlencode(
+            {
+                "response_type": "code",
+                "client_id": client_id,
+                "redirect_uri": redirect_uri,
+                "scope": " ".join(scopes),
+                "state": state,
+            }
+        )
     )
 
     print(f"\nOpening your browser to authorize Oura access...\n  {authorize_url}\n")
@@ -144,8 +144,7 @@ def login_command(argv: list[str] | None = None) -> int:
         "--port",
         type=int,
         default=int(os.environ.get("OURA_REDIRECT_PORT", "8080")),
-        help="Loopback port; the registered redirect URI must be "
-        "http://localhost:PORT/callback (default 8080).",
+        help="Loopback port; the registered redirect URI must be http://localhost:PORT/callback (default 8080).",
     )
     parser.add_argument("--scopes", nargs="*", default=None, help="Override the requested scopes.")
     parser.add_argument("--no-browser", action="store_true", help="Don't auto-open the browser.")

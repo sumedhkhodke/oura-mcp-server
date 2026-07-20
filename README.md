@@ -224,11 +224,13 @@ created/updated/deleted. Two things to know:
 ```bash
 uv pip install -e ".[dev]"
 ruff check .      # lint (import order, pyflakes, pycodestyle, bugbear, pyupgrade)
+ruff format .     # auto-format (check-only in CI: `ruff format --check .`)
 pytest            # HTTP layer mocked with respx; no token or network needed
 ```
 
-CI runs `ruff check` and the test matrix on every push/PR. The web SessionStart
-hook installs `ruff` too and prints the lint status at startup (non-blocking).
+CI gates on `ruff check`, `ruff format --check`, and the test matrix on every
+push/PR. The web SessionStart hook installs `ruff` too and prints the lint +
+format status at startup (non-blocking).
 
 Layout:
 

@@ -24,12 +24,26 @@ def _mock_daily(day, sleep=80, readiness=75, activity=85):
         return_value=httpx.Response(200, json={"data": [{"day": day, "score": readiness}], "next_token": None})
     )
     respx.get(f"{BASE}/usercollection/daily_activity").mock(
-        return_value=httpx.Response(200, json={"data": [{"day": day, "score": activity, "steps": 8000}], "next_token": None})
+        return_value=httpx.Response(
+            200, json={"data": [{"day": day, "score": activity, "steps": 8000}], "next_token": None}
+        )
     )
     respx.get(f"{BASE}/usercollection/sleep").mock(
-        return_value=httpx.Response(200, json={"data": [
-            {"day": day, "type": "long_sleep", "total_sleep_duration": 25200, "lowest_heart_rate": 50, "average_hrv": 60}
-        ], "next_token": None})
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "day": day,
+                        "type": "long_sleep",
+                        "total_sleep_duration": 25200,
+                        "lowest_heart_rate": 50,
+                        "average_hrv": 60,
+                    }
+                ],
+                "next_token": None,
+            },
+        )
     )
 
 

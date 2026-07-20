@@ -25,9 +25,20 @@ WEBHOOK_BASE = "https://api.ouraring.com/v2/webhook/subscription"
 
 EVENT_TYPES = ("create", "update", "delete")
 DATA_TYPES = (
-    "tag", "enhanced_tag", "workout", "session", "sleep", "daily_sleep",
-    "daily_readiness", "daily_activity", "daily_spo2", "sleep_time",
-    "rest_mode_period", "ring_configuration", "daily_stress", "daily_cycle_phases",
+    "tag",
+    "enhanced_tag",
+    "workout",
+    "session",
+    "sleep",
+    "daily_sleep",
+    "daily_readiness",
+    "daily_activity",
+    "daily_spo2",
+    "sleep_time",
+    "rest_mode_period",
+    "ring_configuration",
+    "daily_stress",
+    "daily_cycle_phases",
 )
 
 
@@ -73,8 +84,7 @@ class WebhookClient:
             raise OuraError(f"Webhook request failed: {exc}") from exc
         if resp.status_code == 401 or resp.status_code == 403:
             raise OuraError(
-                f"Oura rejected the app credentials ({resp.status_code}). Check "
-                "OURA_CLIENT_ID / OURA_CLIENT_SECRET."
+                f"Oura rejected the app credentials ({resp.status_code}). Check OURA_CLIENT_ID / OURA_CLIENT_SECRET."
             )
         if resp.status_code >= 400:
             raise OuraError(f"Webhook API error {resp.status_code}: {resp.text[:500]}")

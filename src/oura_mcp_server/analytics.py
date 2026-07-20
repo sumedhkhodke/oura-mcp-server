@@ -54,9 +54,7 @@ def _pick_main_sleep(periods: list[dict[str, Any]]) -> dict[str, dict[str, Any]]
     return by_day
 
 
-async def build_daily_records(
-    client: OuraClient, start_date: str, end_date: str
-) -> dict[str, dict[str, Any]]:
+async def build_daily_records(client: OuraClient, start_date: str, end_date: str) -> dict[str, dict[str, Any]]:
     """Return ``{day: {metric: value, ...}}`` across sleep/readiness/activity."""
     params = {"start_date": start_date, "end_date": end_date}
     daily_sleep = await client.get_collection("daily_sleep", params)
@@ -151,20 +149,22 @@ def pearson(xs: list[float], ys: list[float]) -> float | None:
 def _interpret_r(r: float) -> str:
     a = abs(r)
     strength = (
-        "negligible" if a < 0.1 else
-        "weak" if a < 0.3 else
-        "moderate" if a < 0.5 else
-        "strong" if a < 0.7 else
-        "very strong"
+        "negligible"
+        if a < 0.1
+        else "weak"
+        if a < 0.3
+        else "moderate"
+        if a < 0.5
+        else "strong"
+        if a < 0.7
+        else "very strong"
     )
     if a < 0.1:
         return "negligible relationship"
     return f"{strength} {'positive' if r > 0 else 'negative'} relationship"
 
 
-def correlate(
-    records: dict[str, dict[str, Any]], metric_a: str, metric_b: str, lag_days: int = 0
-) -> dict[str, Any]:
+def correlate(records: dict[str, dict[str, Any]], metric_a: str, metric_b: str, lag_days: int = 0) -> dict[str, Any]:
     """Correlate metric_a on day D with metric_b on day D+lag_days."""
     a_by_day = {d: v for d, v in _series(records, metric_a)}
     b_by_day = {d: v for d, v in _series(records, metric_b)}
@@ -188,8 +188,5 @@ def correlate(
         result["pearson_r"] = round(r, 3)
         result["interpretation"] = _interpret_r(r)
         if lag_days:
-            result["reading"] = (
-                f"{metric_a} shows a {_interpret_r(r)} with {metric_b} "
-                f"{lag_days} day(s) later"
-            )
+            result["reading"] = f"{metric_a} shows a {_interpret_r(r)} with {metric_b} {lag_days} day(s) later"
     return result

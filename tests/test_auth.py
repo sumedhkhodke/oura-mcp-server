@@ -14,8 +14,12 @@ TOKEN_URL = "https://api.ouraring.com/oauth/token"
 def test_token_roundtrip_and_permissions(tmp_path):
     path = tmp_path / "tokens.json"
     tok = auth.StoredToken(
-        access_token="a", refresh_token="r", expires_at=time.time() + 1000,
-        client_id="cid", client_secret="secret", scope="daily",
+        access_token="a",
+        refresh_token="r",
+        expires_at=time.time() + 1000,
+        client_id="cid",
+        client_secret="secret",
+        scope="daily",
     )
     auth.save_token(tok, path)
     loaded = auth.load_token(path)
@@ -35,7 +39,8 @@ def test_is_expired():
 def test_from_token_response_computes_expiry():
     tok = auth.StoredToken.from_token_response(
         {"access_token": "x", "refresh_token": "y", "expires_in": 3600, "scope": "daily"},
-        client_id="cid", client_secret="sec",
+        client_id="cid",
+        client_secret="sec",
     )
     assert tok.access_token == "x"
     assert tok.expires_at is not None and tok.expires_at > time.time()
@@ -45,13 +50,14 @@ def test_from_token_response_computes_expiry():
 async def test_oauth_source_refreshes_when_expired(tmp_path):
     path = tmp_path / "tokens.json"
     expired = auth.StoredToken(
-        access_token="old", refresh_token="r", expires_at=time.time() - 100,
-        client_id="cid", client_secret="sec",
+        access_token="old",
+        refresh_token="r",
+        expires_at=time.time() - 100,
+        client_id="cid",
+        client_secret="sec",
     )
     respx.post(TOKEN_URL).mock(
-        return_value=httpx.Response(
-            200, json={"access_token": "new", "refresh_token": "r2", "expires_in": 3600}
-        )
+        return_value=httpx.Response(200, json={"access_token": "new", "refresh_token": "r2", "expires_in": 3600})
     )
     src = auth.OAuthTokenSource(expired, path)
     token = await src.get()
@@ -63,8 +69,11 @@ async def test_oauth_source_refreshes_when_expired(tmp_path):
 @respx.mock
 async def test_oauth_source_refresh_failure_raises(tmp_path):
     tok = auth.StoredToken(
-        access_token="old", refresh_token="r", expires_at=time.time() - 100,
-        client_id="cid", client_secret="sec",
+        access_token="old",
+        refresh_token="r",
+        expires_at=time.time() - 100,
+        client_id="cid",
+        client_secret="sec",
     )
     respx.post(TOKEN_URL).mock(return_value=httpx.Response(400, text="bad"))
     src = auth.OAuthTokenSource(tok, tmp_path / "t.json")

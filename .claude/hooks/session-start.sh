@@ -21,9 +21,10 @@ fi
 # Idempotent; re-runnable.
 uv pip install --system -e ".[dev]"
 
-# Surface the ruff lint status at startup. Non-fatal: a lint finding must not
-# block the session from starting (set -e would otherwise abort here).
-echo "session-start: running ruff lint (informational)..."
-ruff check . || echo "session-start: ruff reported issues (see above); not blocking startup."
+# Surface the ruff lint + format status at startup. Non-fatal: a finding must
+# not block the session from starting (set -e would otherwise abort here).
+echo "session-start: running ruff lint + format check (informational)..."
+ruff check . || echo "session-start: ruff lint reported issues (see above); not blocking startup."
+ruff format --check . || echo "session-start: ruff format would reformat files; run 'ruff format .' (not blocking)."
 
 echo "session-start: oura-mcp-server dev environment ready."

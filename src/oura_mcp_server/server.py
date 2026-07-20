@@ -75,6 +75,7 @@ async def _collection(endpoint: str, start_date: str | None, end_date: str | Non
 # Daily summary scores
 # --------------------------------------------------------------------------- #
 
+
 @mcp.tool
 async def get_daily_sleep(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
     """Daily Sleep scores and contributors (deep sleep, efficiency, latency,
@@ -99,6 +100,7 @@ async def get_daily_activity(start_date: str | None = None, end_date: str | None
 # --------------------------------------------------------------------------- #
 # Detailed biometrics
 # --------------------------------------------------------------------------- #
+
 
 @mcp.tool
 async def get_sleep_periods(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
@@ -130,9 +132,7 @@ async def get_daily_resilience(start_date: str | None = None, end_date: str | No
 
 
 @mcp.tool
-async def get_daily_cardiovascular_age(
-    start_date: str | None = None, end_date: str | None = None
-) -> dict[str, Any]:
+async def get_daily_cardiovascular_age(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
     """Daily Cardiovascular Age estimate (vascular age vs. chronological age)."""
     return await _collection("daily_cardiovascular_age", start_date, end_date)
 
@@ -145,9 +145,7 @@ async def get_vo2_max(start_date: str | None = None, end_date: str | None = None
 
 
 @mcp.tool
-async def get_heart_rate(
-    start_datetime: str | None = None, end_datetime: str | None = None
-) -> dict[str, Any]:
+async def get_heart_rate(start_datetime: str | None = None, end_datetime: str | None = None) -> dict[str, Any]:
     """Time-series heart rate samples (bpm) with source (awake/sleep/rest/
     workout) and timestamp. Uses ISO 8601 datetimes; defaults to the last 24
     hours. Windows can be large — this is raw samples, not a daily summary."""
@@ -175,6 +173,7 @@ async def get_heart_rate(
 # Activity detail, sessions, tags, config
 # --------------------------------------------------------------------------- #
 
+
 @mcp.tool
 async def get_workouts(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
     """Recorded workouts: activity type, intensity, calories, distance, and
@@ -196,9 +195,7 @@ async def get_sleep_time(start_date: str | None = None, end_date: str | None = N
 
 
 @mcp.tool
-async def get_rest_mode_periods(
-    start_date: str | None = None, end_date: str | None = None
-) -> dict[str, Any]:
+async def get_rest_mode_periods(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
     """Rest Mode periods (when the user flagged illness/recovery) and their
     episodes."""
     return await _collection("rest_mode_period", start_date, end_date)
@@ -236,6 +233,7 @@ async def get_ring_configuration() -> dict[str, Any]:
 # Derived analytics (briefing, trends, correlations)
 # --------------------------------------------------------------------------- #
 
+
 @mcp.tool
 async def get_daily_briefing(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
     """Combined day-by-day recovery briefing: Sleep/Readiness/Activity scores
@@ -245,9 +243,7 @@ async def get_daily_briefing(start_date: str | None = None, end_date: str | None
     to the last 7 days."""
     dates = _default_dates(start_date, end_date)
     try:
-        records = await analytics.build_daily_records(
-            _get_client(), dates["start_date"], dates["end_date"]
-        )
+        records = await analytics.build_daily_records(_get_client(), dates["start_date"], dates["end_date"])
     except OuraError as exc:
         return {"error": str(exc)}
     return {
@@ -259,9 +255,7 @@ async def get_daily_briefing(start_date: str | None = None, end_date: str | None
 
 
 @mcp.tool
-async def get_metric_trend(
-    metric: str, days: int = 14, end_date: str | None = None
-) -> dict[str, Any]:
+async def get_metric_trend(metric: str, days: int = 14, end_date: str | None = None) -> dict[str, Any]:
     """Trend statistics for one metric over the last N days: mean, min, max,
     first-vs-last change, delta from the mean, and direction.
 
@@ -278,9 +272,7 @@ async def get_metric_trend(
     result = analytics.summarize_metric(records, metric)
     result["start_date"] = start
     result["end_date"] = end
-    result["series"] = [
-        {"day": d, metric: r.get(metric)} for d, r in records.items() if r.get(metric) is not None
-    ]
+    result["series"] = [{"day": d, metric: r.get(metric)} for d, r in records.items() if r.get(metric) is not None]
     return result
 
 
@@ -317,6 +309,7 @@ async def get_metric_correlation(
 # --------------------------------------------------------------------------- #
 # Analysis prompt templates
 # --------------------------------------------------------------------------- #
+
 
 @mcp.prompt
 def analyze_recovery(days: int = 7) -> str:
@@ -360,6 +353,7 @@ def sleep_optimization() -> str:
 # Webhook subscription management (push updates)
 # --------------------------------------------------------------------------- #
 
+
 async def _with_webhook_client(coro_factory) -> dict[str, Any]:
     from .webhook import WebhookClient
 
@@ -398,9 +392,7 @@ async def create_webhook_subscription(
         return {"error": f"event_type must be one of {EVENT_TYPES}"}
     if data_type not in DATA_TYPES:
         return {"error": f"data_type must be one of {DATA_TYPES}"}
-    return await _with_webhook_client(
-        lambda wc: wc.create(callback_url, verification_token, event_type, data_type)
-    )
+    return await _with_webhook_client(lambda wc: wc.create(callback_url, verification_token, event_type, data_type))
 
 
 @mcp.tool
@@ -427,11 +419,7 @@ def build_auth_from_env():
         return None
     from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
-    tokens = {
-        tok.strip(): {"client_id": "oura-owner", "scopes": []}
-        for tok in raw.split(",")
-        if tok.strip()
-    }
+    tokens = {tok.strip(): {"client_id": "oura-owner", "scopes": []} for tok in raw.split(",") if tok.strip()}
     return StaticTokenVerifier(tokens)
 
 

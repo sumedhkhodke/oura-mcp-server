@@ -58,9 +58,7 @@ class OuraClient:
             # Token may have expired mid-flight; try one refresh then retry.
             new_token = await self._auth.force_refresh()
             if new_token:
-                resp = await self._client.get(
-                    path, params=params, headers={"Authorization": f"Bearer {new_token}"}
-                )
+                resp = await self._client.get(path, params=params, headers={"Authorization": f"Bearer {new_token}"})
         return resp
 
     async def _request(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -88,9 +86,7 @@ class OuraClient:
 
         return resp.json()
 
-    async def get_collection(
-        self, endpoint: str, params: dict[str, Any] | None = None
-    ) -> list[dict[str, Any]]:
+    async def get_collection(self, endpoint: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """GET a paginated ``usercollection`` endpoint and return all documents.
 
         Transparently follows ``next_token`` until the collection is exhausted.
