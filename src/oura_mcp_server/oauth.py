@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import httpx
 
-from .auth import StoredToken, save_token, token_file_path
+from .auth import StoredToken, load_token, save_token, token_file_path
 
 OURA_AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize"
 OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token"
@@ -149,6 +149,13 @@ def login_command(argv: list[str] | None = None) -> int:
     parser.add_argument("--scopes", nargs="*", default=None, help="Override the requested scopes.")
     parser.add_argument("--no-browser", action="store_true", help="Don't auto-open the browser.")
     args = parser.parse_args(argv)
+
+    if not args.client_id or not args.client_secret:
+        # Re-login: reuse the app credentials persisted by a previous login.
+        stored = load_token()
+        if stored and stored.client_id and stored.client_secret:
+            args.client_id = args.client_id or stored.client_id
+            args.client_secret = args.client_secret or stored.client_secret
 
     if not args.client_id or not args.client_secret:
         print(
