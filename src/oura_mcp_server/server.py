@@ -10,7 +10,6 @@ Dates are ISO ``YYYY-MM-DD``. Heart rate uses ISO 8601 datetimes.
 from __future__ import annotations
 
 import logging
-import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -456,19 +455,10 @@ async def get_recent_webhook_events(limit: int = 50) -> dict[str, Any]:
 
 
 def build_auth_from_env():
-    """Build a bearer-token verifier from ``OURA_MCP_AUTH_TOKEN``.
+    """Build the client-facing GitHub OAuth proxy from environment config."""
+    from .mcp_auth import build_github_oauth
 
-    Returns a ``StaticTokenVerifier`` that accepts a single API key (your
-    credential) as ``Authorization: Bearer <token>``, or ``None`` if no token is
-    configured. Comma-separated tokens are all accepted (e.g. to rotate keys).
-    """
-    raw = os.environ.get("OURA_MCP_AUTH_TOKEN", "").strip()
-    if not raw:
-        return None
-    from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
-
-    tokens = {tok.strip(): {"client_id": "oura-owner", "scopes": []} for tok in raw.split(",") if tok.strip()}
-    return StaticTokenVerifier(tokens)
+    return build_github_oauth()
 
 
 def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
@@ -478,24 +468,18 @@ def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> 
     ``transport='http'`` for a remote/hosted deployment reachable over the
     network (Streamable HTTP at http://host:port/mcp).
 
-    The HTTP transport is **fail-closed**: it requires ``OURA_MCP_AUTH_TOKEN`` so
-    only requests bearing your credential are served. Set
-    ``OURA_MCP_ALLOW_NO_AUTH=true`` to intentionally run it open (local testing).
+    The HTTP transport is **fail-closed**: it requires a fully configured GitHub
+    OAuth proxy and a non-empty GitHub user allowlist. Static shared bearer tokens
+    are intentionally unsupported.
     """
     if transport == "http":
-        auth = build_auth_from_env()
-        if auth is None and os.environ.get("OURA_MCP_ALLOW_NO_AUTH", "").lower() != "true":
-            raise SystemExit(
-                "Refusing to start an unauthenticated HTTP server. Set "
-                "OURA_MCP_AUTH_TOKEN to a secret bearer token (clients must send "
-                "it as 'Authorization: Bearer <token>'), or set "
-                "OURA_MCP_ALLOW_NO_AUTH=true to override for local testing."
-            )
-        if auth is not None:
-            mcp.auth = auth
-            logger.info("HTTP transport: bearer-token auth enabled.")
-        else:
-            logger.warning("HTTP transport: running WITHOUT auth (OURA_MCP_ALLOW_NO_AUTH).")
+        from .mcp_auth import McpAuthConfigurationError
+
+        try:
+            mcp.auth = build_auth_from_env()
+        except McpAuthConfigurationError as exc:
+            raise SystemExit(f"Refusing to start HTTP transport: {exc}") from exc
+        logger.info("HTTP transport: GitHub OAuth enabled.")
         mcp.run(transport="http", host=host, port=port)
     else:
         mcp.run()

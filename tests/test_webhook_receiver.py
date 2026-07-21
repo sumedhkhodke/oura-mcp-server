@@ -1,5 +1,6 @@
 """Tests for the /webhook callback endpoint (Oura verification + event intake)."""
 
+import fastmcp
 import httpx
 import pytest
 
@@ -63,11 +64,15 @@ def test_event_buffer_is_bounded():
     webhook_receiver.clear_events()
 
 
-async def test_webhook_route_bypasses_bearer_auth(monkeypatch):
-    """Oura's servers can't send our MCP bearer token — /webhook must stay reachable
-    even when the MCP endpoint itself requires auth."""
+async def test_webhook_route_bypasses_mcp_oauth(monkeypatch, tmp_path):
+    """Oura cannot complete MCP OAuth, so /webhook stays independently gated."""
     monkeypatch.setenv("OURA_WEBHOOK_VERIFICATION_TOKEN", "vtok")
-    monkeypatch.setenv("OURA_MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.setenv("OURA_MCP_GITHUB_CLIENT_ID", "github-client-id")
+    monkeypatch.setenv("OURA_MCP_GITHUB_CLIENT_SECRET", "github-client-secret")
+    monkeypatch.setenv("OURA_MCP_ALLOWED_GITHUB_USERS", "sumedhkhodke")
+    monkeypatch.setenv("OURA_MCP_JWT_SIGNING_KEY", "a-stable-random-signing-key")
+    monkeypatch.setenv("OURA_MCP_BASE_URL", "http://localhost:8000")
+    monkeypatch.setattr(fastmcp.settings, "home", tmp_path)
     old_auth = server.mcp.auth
     server.mcp.auth = server.build_auth_from_env()
     try:

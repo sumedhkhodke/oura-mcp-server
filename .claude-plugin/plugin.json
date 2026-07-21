@@ -8,10 +8,7 @@
   "mcpServers": {
     "oura": {
       "type": "http",
-      "url": "https://oura-mcp-server-production-fa2e.up.railway.app/mcp",
-      "headers": {
-        "Authorization": "Bearer ${OURA_MCP_AUTH_TOKEN}"
-      }
+      "url": "https://oura-mcp-server-production-fa2e.up.railway.app/mcp"
     }
   }
 }

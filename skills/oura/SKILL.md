@@ -18,8 +18,8 @@ it based on their setup:
 - **Local (stdio) server:** run `uv run oura-mcp-server login` in the server
   repo (reuses saved app credentials; pass `--client-id`/`--client-secret` on
   first ever login).
-- **Remote (HTTP) server:** the bearer token in the client registration is
-  missing or was revoked — re-add with a valid `OURA_MCP_AUTH_TOKEN` value.
+- **Remote (HTTP) server:** reconnect the MCP server and complete the GitHub
+  OAuth flow. Access is limited to GitHub users allowlisted by the server.
 
 If tools return empty data, remind the user that most endpoints require an
 active Oura membership, and that today's data syncs only after the ring syncs
