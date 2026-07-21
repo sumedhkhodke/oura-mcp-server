@@ -58,6 +58,22 @@ def test_builds_oauth_proxy_with_claude_redirects(monkeypatch, tmp_path, oauth_e
     assert auth._token_validator.allowed_users == {"sumedhkhodke"}
 
 
+def test_http_run_attaches_oauth_provider(monkeypatch, tmp_path, oauth_env):
+    for name, value in oauth_env.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(fastmcp.settings, "home", tmp_path)
+
+    run_args = {}
+    monkeypatch.setattr(server.mcp, "run", lambda **kwargs: run_args.update(kwargs))
+    old_auth = server.mcp.auth
+    try:
+        server.run(transport="http", host="0.0.0.0", port=9000)
+        assert isinstance(server.mcp.auth, OAuthProxy)
+        assert run_args == {"transport": "http", "host": "0.0.0.0", "port": 9000}
+    finally:
+        server.mcp.auth = old_auth
+
+
 @pytest.mark.asyncio
 async def test_verifier_accepts_allowlisted_user_case_insensitively():
     def respond(request):

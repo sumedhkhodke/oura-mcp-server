@@ -29,9 +29,9 @@ doing?" tool), `get_metric_trend` (stats + direction over N days),
 `steps`, `active_calories`.
 
 **Webhooks** — `list/create/renew/delete_webhook_subscription` manage Oura push
-subscriptions. These use your OAuth app credentials (saved by `login`); creating one
-requires a publicly reachable callback that echoes Oura's verification `challenge`
-back as JSON `{"challenge": ...}`.
+subscriptions. These use your OAuth app credentials from the environment or saved by
+`login`; creating one requires a publicly reachable callback that echoes Oura's
+verification `challenge` back as JSON `{"challenge": ...}`.
 
 **Prompts** — `analyze_recovery`, `weekly_review`, `sleep_optimization`.
 
@@ -109,13 +109,14 @@ Then configure:
 OURA_MCP_GITHUB_CLIENT_ID=...
 OURA_MCP_GITHUB_CLIENT_SECRET=...
 OURA_MCP_ALLOWED_GITHUB_USERS=sumedhkhodke
-OURA_MCP_BASE_URL=https://oura-mcp-server-production-fa2e.up.railway.app
 OURA_MCP_JWT_SIGNING_KEY=<stable random secret>
 FASTMCP_HOME=/data/fastmcp
 ```
 
 `OURA_MCP_JWT_SIGNING_KEY` must remain stable. Mount persistent storage at
 `/data` so FastMCP's encrypted OAuth registrations and tokens survive restarts.
+Outside Railway, also set `OURA_MCP_BASE_URL` to the server's public HTTPS origin;
+Railway derives it from `RAILWAY_PUBLIC_DOMAIN`.
 
 ### Deploy to Railway
 
@@ -127,7 +128,7 @@ railway login
 railway init
 railway variables --set "OURA_CLIENT_ID=..." --set "OURA_CLIENT_SECRET=..." \
                   --set "OURA_REFRESH_TOKEN=..."   # refresh_token from ~/.oura-mcp/tokens.json
-# Set the six client-facing OAuth variables shown above and mount a volume at /data.
+# Set the client-facing OAuth variables shown above and mount a volume at /data.
 railway up
 railway domain
 ```

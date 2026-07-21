@@ -95,9 +95,6 @@ class WebhookClient:
     async def list(self) -> Any:
         return await self._do("GET", WEBHOOK_BASE)
 
-    async def get(self, subscription_id: str) -> Any:
-        return await self._do("GET", f"{WEBHOOK_BASE}/{subscription_id}")
-
     async def create(self, callback_url: str, verification_token: str, event_type: str, data_type: str) -> Any:
         return await self._do(
             "POST",

@@ -5,6 +5,7 @@ import httpx
 import pytest
 
 from oura_mcp_server import server, webhook_receiver
+from oura_mcp_server.mcp_auth import build_github_oauth
 
 
 @pytest.fixture
@@ -74,7 +75,7 @@ async def test_webhook_route_bypasses_mcp_oauth(monkeypatch, tmp_path):
     monkeypatch.setenv("OURA_MCP_BASE_URL", "http://localhost:8000")
     monkeypatch.setattr(fastmcp.settings, "home", tmp_path)
     old_auth = server.mcp.auth
-    server.mcp.auth = server.build_auth_from_env()
+    server.mcp.auth = build_github_oauth()
     try:
         transport = httpx.ASGITransport(app=server.mcp.http_app())
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

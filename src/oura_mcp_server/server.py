@@ -415,8 +415,8 @@ async def delete_webhook_subscription(subscription_id: str) -> dict[str, Any]:
 async def oura_webhook_callback(request):
     """Answer Oura's verification challenge (GET) and record pushed events (POST).
 
-    Oura cannot send our MCP bearer token, so this route sits outside the MCP
-    auth layer; it is gated by OURA_WEBHOOK_VERIFICATION_TOKEN instead and is
+    Oura cannot complete the MCP OAuth flow, so this route sits outside the MCP
+    auth layer. It is gated by OURA_WEBHOOK_VERIFICATION_TOKEN instead and is
     disabled (503) when that env var is unset.
     """
     from starlette.responses import JSONResponse
@@ -454,13 +454,6 @@ async def get_recent_webhook_events(limit: int = 50) -> dict[str, Any]:
     return {"count": len(events), "events": events}
 
 
-def build_auth_from_env():
-    """Build the client-facing GitHub OAuth proxy from environment config."""
-    from .mcp_auth import build_github_oauth
-
-    return build_github_oauth()
-
-
 def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
     """Run the server.
 
@@ -473,10 +466,10 @@ def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> 
     are intentionally unsupported.
     """
     if transport == "http":
-        from .mcp_auth import McpAuthConfigurationError
+        from .mcp_auth import McpAuthConfigurationError, build_github_oauth
 
         try:
-            mcp.auth = build_auth_from_env()
+            mcp.auth = build_github_oauth()
         except McpAuthConfigurationError as exc:
             raise SystemExit(f"Refusing to start HTTP transport: {exc}") from exc
         logger.info("HTTP transport: GitHub OAuth enabled.")
