@@ -67,7 +67,7 @@ Metrics for `get_metric_trend` / `get_metric_correlation`: `sleep_score`, `readi
 
 ## Authentication
 
-OAuth2 (Oura deprecated new Personal Access Tokens in December 2025):
+OAuth2:
 
 1. Create an application at <https://developer.ouraring.com/> with redirect URI exactly
    `http://localhost:8080/callback` (change the port with `--port` / `OURA_REDIRECT_PORT`). The
