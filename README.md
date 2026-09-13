@@ -135,8 +135,9 @@ railway domain
 
 The `login` flow is interactive, so containers authenticate via env instead: with
 `OURA_REFRESH_TOKEN` + client credentials set, the server mints and refreshes its
-own access tokens. (A static `OURA_ACCESS_TOKEN` also works, but only a legacy PAT
-is long-lived enough on its own.) Railway injects `PORT`; your MCP endpoint is
+own access tokens and persists the rotated pair to `OURA_TOKEN_FILE`. (A static
+`OURA_ACCESS_TOKEN` also works, but only a legacy PAT is long-lived enough on its
+own; OAuth access tokens expire after 30 days.) Railway injects `PORT`; your MCP endpoint is
 `https://<app>.up.railway.app/mcp`.
 
 ### Claude web
