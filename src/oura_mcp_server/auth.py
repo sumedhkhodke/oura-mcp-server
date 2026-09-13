@@ -1,11 +1,15 @@
 """Authentication for the Oura MCP server.
 
-Two ways to authenticate, resolved automatically at runtime by
-:func:`default_token_source`:
+Three ways to authenticate, resolved automatically at runtime by
+:func:`default_token_source` (highest precedence first):
 
-1. ``OURA_ACCESS_TOKEN`` env var — a static bearer token (a legacy Personal
-   Access Token, or any access token you paste in). Cannot self-refresh.
-2. An OAuth2 token file written by ``oura-mcp-server login`` (default
+1. ``OURA_REFRESH_TOKEN`` + ``OURA_CLIENT_ID`` + ``OURA_CLIENT_SECRET`` env vars
+   — headless refresh mode for containers where ``oura-mcp-server login`` can't
+   run. Optionally seeded with ``OURA_ACCESS_TOKEN``; refreshed tokens are
+   persisted to the token file.
+2. ``OURA_ACCESS_TOKEN`` env var alone — a static bearer token (a legacy
+   Personal Access Token, or any access token you paste in). Cannot self-refresh.
+3. An OAuth2 token file written by ``oura-mcp-server login`` (default
    ``~/.oura-mcp/tokens.json``). Auto-refreshes using the stored refresh token.
 
 The OAuth2 authorization-code flow itself lives in :mod:`oura_mcp_server.oauth`.
@@ -13,13 +17,19 @@ The OAuth2 authorization-code flow itself lives in :mod:`oura_mcp_server.oauth`.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
+import logging
 import os
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
+from typing import Any
 
 import httpx
+
+logger = logging.getLogger("oura_mcp_server.auth")
 
 OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token"
 
@@ -63,7 +73,7 @@ class StoredToken:
     @classmethod
     def from_token_response(
         cls,
-        payload: dict,
+        payload: dict[str, Any],
         *,
         client_id: str | None = None,
         client_secret: str | None = None,
@@ -85,10 +95,8 @@ def save_token(token: StoredToken, path: Path | None = None) -> Path:
     path = path or token_file_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(token), indent=2))
-    try:
+    with contextlib.suppress(OSError):
         path.chmod(0o600)
-    except OSError:
-        pass  # best-effort on platforms without POSIX perms
     return path
 
 
@@ -96,8 +104,15 @@ def load_token(path: Path | None = None) -> StoredToken | None:
     path = path or token_file_path()
     if not path.exists():
         return None
-    data = json.loads(path.read_text())
-    return StoredToken(**data)
+    unreadable = AuthError(f"Token file at {path} is unreadable; re-run `oura-mcp-server login`")
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        raise unreadable from exc
+    if not isinstance(data, dict) or not data.get("access_token"):
+        raise unreadable
+    known = {f.name for f in fields(StoredToken)}
+    return StoredToken(**{k: v for k, v in data.items() if k in known})
 
 
 class TokenSource:
@@ -127,15 +142,27 @@ class OAuthTokenSource(TokenSource):
     def __init__(self, token: StoredToken, path: Path | None = None) -> None:
         self._token = token
         self._path = path or token_file_path()
+        self._lock = asyncio.Lock()
 
     async def get(self) -> str:
         if self._token.is_expired():
-            await self.force_refresh()
+            async with self._lock:
+                if self._token.is_expired():
+                    await self._refresh()
         return self._token.access_token
 
     async def force_refresh(self) -> str | None:
+        stale = self._token.access_token
+        async with self._lock:
+            if self._token.access_token != stale:
+                return self._token.access_token
+            return await self._refresh()
+
+    async def _refresh(self) -> str | None:
         if not (self._token.refresh_token and self._token.client_id and self._token.client_secret):
+            logger.warning("Cannot refresh Oura token: refresh_token/client_id/client_secret missing.")
             return None
+        logger.info("Refreshing Oura access token (expires_at=%s).", self._token.expires_at)
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 OURA_TOKEN_URL,
@@ -147,6 +174,7 @@ class OAuthTokenSource(TokenSource):
                 },
             )
         if resp.status_code >= 400:
+            logger.error("Oura token refresh failed (%s): %s", resp.status_code, resp.text[:300])
             raise AuthError(
                 f"Token refresh failed ({resp.status_code}). Re-run `oura-mcp-server login`. Detail: {resp.text[:300]}"
             )
@@ -156,7 +184,8 @@ class OAuthTokenSource(TokenSource):
             client_secret=self._token.client_secret,
             fallback_refresh_token=self._token.refresh_token,
         )
-        save_token(self._token, self._path)
+        saved = save_token(self._token, self._path)
+        logger.info("Oura access token refreshed (expires_at=%s); saved to %s.", self._token.expires_at, saved)
         return self._token.access_token
 
 

@@ -74,7 +74,6 @@ def test_http_run_attaches_oauth_provider(monkeypatch, tmp_path, oauth_env):
         server.mcp.auth = old_auth
 
 
-@pytest.mark.asyncio
 async def test_verifier_accepts_allowlisted_user_case_insensitively():
     def respond(request):
         if request.url.path == "/user":
@@ -88,7 +87,6 @@ async def test_verifier_accepts_allowlisted_user_case_insensitively():
         assert await verifier.verify_token("valid-token") is not None
 
 
-@pytest.mark.asyncio
 async def test_verifier_rejects_non_allowlisted_user():
     def respond(request):
         if request.url.path == "/user":
@@ -114,3 +112,21 @@ def test_http_without_oauth_config_is_fail_closed(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(SystemExit, match="Refusing to start HTTP transport"):
         server.run(transport="http")
+
+
+def test_public_base_url_requires_configuration():
+    with pytest.raises(McpAuthConfigurationError, match="Missing OURA_MCP_BASE_URL"):
+        public_base_url({})
+
+
+def test_verifier_rejects_empty_allowlist():
+    with pytest.raises(McpAuthConfigurationError, match="OURA_MCP_ALLOWED_GITHUB_USERS"):
+        AllowlistedGitHubTokenVerifier(frozenset())
+
+
+async def test_verifier_returns_none_when_upstream_rejects_token():
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(401))) as client:
+        verifier = AllowlistedGitHubTokenVerifier(
+            frozenset({"sumedhkhodke"}), required_scopes=["read:user"], http_client=client
+        )
+        assert await verifier.verify_token("revoked") is None

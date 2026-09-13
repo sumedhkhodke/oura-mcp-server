@@ -1,6 +1,6 @@
 .git
 .github
-.claude
+.claude*
 .venv
 venv
 __pycache__
@@ -13,3 +13,6 @@ build
 tests
 .pytest_cache
 .ruff_cache
+.mypy_cache
+CLAUDE.md
+skills

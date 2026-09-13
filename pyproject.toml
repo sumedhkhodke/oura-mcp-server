@@ -1,31 +1,36 @@
 [project]
 name = "oura-mcp-server"
-version = "0.1.0"
+dynamic = ["version"]
 description = "An MCP server that wraps the Oura Ring v2 API (sleep, readiness, activity, HRV, SpO2, stress, and more) using FastMCP."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "Sumedh Khodke" }]
 keywords = ["oura", "mcp", "fastmcp", "oura-ring", "wearables", "health"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
 ]
 dependencies = [
-    "fastmcp>=3.4.4,<4",
+    "fastmcp>=4.0.3,<5",
     "httpx>=0.27.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
     "respx>=0.21.0",
     "ruff>=0.6.0",
 ]
@@ -36,13 +41,20 @@ oura-mcp-server = "oura_mcp_server.__main__:main"
 [project.urls]
 Homepage = "https://github.com/sumedhkhodke/oura-mcp-server"
 Repository = "https://github.com/sumedhkhodke/oura-mcp-server"
+Issues = "https://github.com/sumedhkhodke/oura-mcp-server/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/oura_mcp_server/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oura_mcp_server"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "tests", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -54,7 +66,7 @@ target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF", "N", "PTH", "PERF", "LOG", "G"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]  # allow long lines in test fixtures/mock payloads

@@ -10,14 +10,18 @@ Dates are ISO ``YYYY-MM-DD``. Heart rate uses ISO 8601 datetimes.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
-from . import analytics
+from . import analytics, webhook_receiver
 from .analytics import METRIC_KEYS
 from .client import OuraClient, OuraError
+from .webhook import DATA_TYPES, EVENT_TYPES, WebhookClient
 
 logger = logging.getLogger("oura_mcp_server")
 
@@ -43,20 +47,39 @@ def _get_client() -> OuraClient:
     return _client
 
 
+def _parse_date(value: str) -> date:
+    """Parse ``YYYY-MM-DD``; raises ``ValueError`` with a message that names the bad input."""
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"invalid date '{value}': expected YYYY-MM-DD") from exc
+
+
+def _parse_datetime(value: str) -> datetime:
+    """Parse an ISO 8601 datetime, accepting a trailing ``Z`` for UTC on every supported Python."""
+    normalized = value[:-1] + "+00:00" if value.endswith(("Z", "z")) else value
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"invalid datetime '{value}': expected ISO 8601, e.g. 2026-07-10T00:00:00Z") from exc
+
+
 def _default_dates(start_date: str | None, end_date: str | None, *, days: int = 7) -> dict[str, str]:
-    """Fill in a sensible date window when the caller omits one."""
-    end = end_date or date.today().isoformat()
-    if start_date:
-        start = start_date
-    else:
-        end_dt = date.fromisoformat(end)
-        start = (end_dt - timedelta(days=days)).isoformat()
-    return {"start_date": start, "end_date": end}
+    """Fill in a ``days``-day window (inclusive of ``end_date``) when the caller omits one.
+
+    Matches :func:`analytics.date_window` so "last 7 days" means 7 calendar days everywhere.
+    """
+    end_dt = _parse_date(end_date) if end_date else date.today()
+    start_dt = _parse_date(start_date) if start_date else end_dt - timedelta(days=max(days - 1, 0))
+    return {"start_date": start_dt.isoformat(), "end_date": end_dt.isoformat()}
 
 
 async def _collection(endpoint: str, start_date: str | None, end_date: str | None) -> dict[str, Any]:
     """Shared implementation for every date-ranged collection tool."""
-    params = _default_dates(start_date, end_date)
+    try:
+        params = _default_dates(start_date, end_date)
+    except ValueError as exc:
+        return {"error": str(exc), "endpoint": endpoint}
     try:
         data = await _get_client().get_collection(endpoint, params)
     except OuraError as exc:
@@ -148,10 +171,13 @@ async def get_heart_rate(start_datetime: str | None = None, end_datetime: str | 
     """Time-series heart rate samples (bpm) with source (awake/sleep/rest/
     workout) and timestamp. Uses ISO 8601 datetimes; defaults to the last 24
     hours. Windows can be large — this is raw samples, not a daily summary."""
-    if end_datetime is None:
-        end_datetime = datetime.now(timezone.utc).isoformat()
-    if start_datetime is None:
-        start_datetime = (datetime.fromisoformat(end_datetime) - timedelta(days=1)).isoformat()
+    try:
+        end_dt = _parse_datetime(end_datetime) if end_datetime else datetime.now(timezone.utc)
+        start_dt = _parse_datetime(start_datetime) if start_datetime else end_dt - timedelta(days=1)
+    except ValueError as exc:
+        return {"error": str(exc), "endpoint": "heartrate"}
+    end_datetime = end_datetime or end_dt.isoformat()
+    start_datetime = start_datetime or start_dt.isoformat()
     try:
         data = await _get_client().get_collection(
             "heartrate",
@@ -240,7 +266,10 @@ async def get_daily_briefing(start_date: str | None = None, end_date: str | None
     deviation, steps, and active calories for each day. The 'how am I doing?'
     tool — one call instead of stitching several endpoints together. Defaults
     to the last 7 days."""
-    dates = _default_dates(start_date, end_date)
+    try:
+        dates = _default_dates(start_date, end_date)
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         records = await analytics.build_daily_records(_get_client(), dates["start_date"], dates["end_date"])
     except OuraError as exc:
@@ -263,7 +292,10 @@ async def get_metric_trend(metric: str, days: int = 14, end_date: str | None = N
     temperature_deviation, steps, active_calories."""
     if metric not in METRIC_KEYS:
         return {"error": f"unknown metric '{metric}'", "valid_metrics": METRIC_KEYS}
-    start, end = analytics.date_window(days, end_date)
+    try:
+        start, end = analytics.date_window(days, end_date)
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         records = await analytics.build_daily_records(_get_client(), start, end)
     except OuraError as exc:
@@ -294,7 +326,10 @@ async def get_metric_correlation(
     for m in (metric_a, metric_b):
         if m not in METRIC_KEYS:
             return {"error": f"unknown metric '{m}'", "valid_metrics": METRIC_KEYS}
-    start, end = analytics.date_window(days, end_date)
+    try:
+        start, end = analytics.date_window(days, end_date)
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         records = await analytics.build_daily_records(_get_client(), start, end)
     except OuraError as exc:
@@ -353,9 +388,7 @@ def sleep_optimization() -> str:
 # --------------------------------------------------------------------------- #
 
 
-async def _with_webhook_client(coro_factory) -> dict[str, Any]:
-    from .webhook import WebhookClient
-
+async def _with_webhook_client(coro_factory: Callable[[WebhookClient], Awaitable[Any]]) -> dict[str, Any]:
     try:
         wc = WebhookClient()
     except OuraError as exc:
@@ -385,8 +418,6 @@ async def create_webhook_subscription(
     daily_sleep, daily_readiness, workout, sleep, tag, etc. Oura verifies the
     subscription by sending a challenge GET to `callback_url` that your server
     must echo — so your callback endpoint must be publicly reachable first."""
-    from .webhook import DATA_TYPES, EVENT_TYPES
-
     if event_type not in EVENT_TYPES:
         return {"error": f"event_type must be one of {EVENT_TYPES}"}
     if data_type not in DATA_TYPES:
@@ -412,17 +443,13 @@ async def delete_webhook_subscription(subscription_id: str) -> dict[str, Any]:
 
 
 @mcp.custom_route("/webhook", methods=["GET", "POST"])
-async def oura_webhook_callback(request):
+async def oura_webhook_callback(request: Request) -> JSONResponse:
     """Answer Oura's verification challenge (GET) and record pushed events (POST).
 
     Oura cannot complete the MCP OAuth flow, so this route sits outside the MCP
     auth layer. It is gated by OURA_WEBHOOK_VERIFICATION_TOKEN instead and is
     disabled (503) when that env var is unset.
     """
-    from starlette.responses import JSONResponse
-
-    from . import webhook_receiver
-
     token = webhook_receiver.verification_token()
     if token is None:
         return JSONResponse({"error": "webhook receiver not configured"}, status_code=503)
@@ -448,8 +475,6 @@ async def get_recent_webhook_events(limit: int = 50) -> dict[str, Any]:
     Newest first. The buffer is in-memory (last 200 events) and clears on server
     restart. Events carry identifiers only (data_type, object_id, user_id) — use
     the matching get_* tool to fetch the actual data."""
-    from . import webhook_receiver
-
     events = webhook_receiver.recent_events(limit)
     return {"count": len(events), "events": events}
 
