@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.1.0
       - name: Create venv and install (with dev deps)
         run: |
           uv venv
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.1.0
       - name: Create venv on Python ${{ matrix.python-version }} and install
         run: |
           uv venv --python ${{ matrix.python-version }}
