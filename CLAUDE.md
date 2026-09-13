@@ -31,7 +31,7 @@ uv run oura-mcp-server                                                 # stdio s
 uv run oura-mcp-server serve --transport http --port 8000              # hosted mode; refuses to start without GitHub OAuth env
 ```
 
-CI runs lint, `uv lock --check`, and tests on Python 3.10 through 3.13, installing with `uv sync --locked`. Dev dependencies are a PEP 735 `[dependency-groups]` group, not an extra.
+CI runs lint, `uv lock --check`, and tests on Python 3.10 through 3.14, installing with `uv sync --locked`. Dev dependencies are a PEP 735 `[dependency-groups]` group, not an extra.
 </important>
 
 <important if="you are adding or modifying MCP tools or prompts">

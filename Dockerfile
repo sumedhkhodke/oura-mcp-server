@@ -1,5 +1,5 @@
 # Lightweight image for running the Oura MCP server over HTTP (e.g. on Railway).
-FROM python:3.12.14-slim
+FROM python:3.14.7-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.12 /uv /bin/uv
 
