@@ -69,3 +69,17 @@ async def test_tool_returns_wrapped_result(monkeypatch):
     assert result["count"] == 1
     assert result["data"][0]["score"] == 88
     assert result["endpoint"] == "daily_readiness"
+
+
+def test_client_prefers_refreshable_source_when_refresh_env_present(monkeypatch, tmp_path):
+    """Refresh credentials in the env must win over a static OURA_ACCESS_TOKEN."""
+    from oura_mcp_server import auth
+
+    monkeypatch.setenv("OURA_ACCESS_TOKEN", "env-at")
+    monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "tokens.json"))
+    monkeypatch.setenv("OURA_REFRESH_TOKEN", "env-rt")
+    monkeypatch.setenv("OURA_CLIENT_ID", "env-cid")
+    monkeypatch.setenv("OURA_CLIENT_SECRET", "env-sec")
+
+    client = OuraClient()
+    assert isinstance(client._auth, auth.OAuthTokenSource)

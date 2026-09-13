@@ -42,8 +42,7 @@ class OuraClient:
         elif access_token is not None:
             self._auth = StaticTokenSource(access_token)
         else:
-            env_token = os.environ.get("OURA_ACCESS_TOKEN")
-            self._auth = StaticTokenSource(env_token) if env_token else default_token_source()
+            self._auth = default_token_source()
 
         self._base_url = (base_url or os.environ.get("OURA_API_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         self._client = httpx.AsyncClient(base_url=self._base_url, timeout=timeout)
