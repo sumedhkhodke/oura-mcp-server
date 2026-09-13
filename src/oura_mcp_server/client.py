@@ -7,6 +7,7 @@ messages instead of raw stack traces.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -14,7 +15,14 @@ import httpx
 
 from .auth import AuthError, StaticTokenSource, TokenSource, default_token_source
 
+logger = logging.getLogger("oura_mcp_server.client")
+
 DEFAULT_BASE_URL = "https://api.ouraring.com/v2"
+
+
+def api_base_url(override: str | None = None) -> str:
+    """Resolve the Oura API base URL: explicit override, else ``OURA_API_BASE_URL``, else the default."""
+    return (override or os.environ.get("OURA_API_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
 
 
 class OuraError(RuntimeError):
@@ -44,7 +52,7 @@ class OuraClient:
         else:
             self._auth = default_token_source()
 
-        self._base_url = (base_url or os.environ.get("OURA_API_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        self._base_url = api_base_url(base_url)
         self._client = httpx.AsyncClient(base_url=self._base_url, timeout=timeout)
 
     async def aclose(self) -> None:
@@ -54,7 +62,7 @@ class OuraClient:
         token = await self._auth.get()
         resp = await self._client.get(path, params=params, headers={"Authorization": f"Bearer {token}"})
         if resp.status_code == 401:
-            # Token may have expired mid-flight; try one refresh then retry.
+            logger.warning("Oura returned 401 for %s; refreshing the access token and retrying once.", path)
             new_token = await self._auth.force_refresh()
             if new_token:
                 resp = await self._client.get(path, params=params, headers={"Authorization": f"Bearer {new_token}"})
@@ -83,7 +91,8 @@ class OuraClient:
         if resp.status_code >= 400:
             raise OuraError(f"Oura API error {resp.status_code}: {resp.text[:500]}")
 
-        return resp.json()
+        payload: dict[str, Any] = resp.json()
+        return payload
 
     async def get_collection(self, endpoint: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """GET a paginated ``usercollection`` endpoint and return all documents.
@@ -107,10 +116,6 @@ class OuraClient:
             if not next_token:
                 break
         return results
-
-    async def get_document(self, endpoint: str, document_id: str) -> dict[str, Any]:
-        """GET a single document by id from a ``usercollection`` endpoint."""
-        return await self._request(f"/usercollection/{endpoint}/{document_id}")
 
     async def get_single(self, endpoint: str) -> dict[str, Any]:
         """GET a non-paginated single-object endpoint (e.g. personal_info)."""

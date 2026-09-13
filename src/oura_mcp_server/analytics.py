@@ -31,7 +31,11 @@ METRIC_KEYS = [
 
 
 def date_window(days: int, end_date: str | None = None) -> tuple[str, str]:
-    end = date.fromisoformat(end_date) if end_date else date.today()
+    """Return ``(start, end)`` ISO dates covering ``days`` calendar days ending on ``end_date`` (default today)."""
+    try:
+        end = date.fromisoformat(end_date) if end_date else date.today()
+    except ValueError as exc:
+        raise ValueError(f"invalid date '{end_date}': expected YYYY-MM-DD") from exc
     start = end - timedelta(days=max(days - 1, 0))
     return start.isoformat(), end.isoformat()
 
@@ -113,10 +117,7 @@ def summarize_metric(records: dict[str, dict[str, Any]], metric: str) -> dict[st
     first_day, first_val = series[0]
     last_day, last_val = series[-1]
     change = last_val - first_val
-    if abs(change) < 1e-9:
-        direction = "flat"
-    else:
-        direction = "up" if change > 0 else "down"
+    direction = "flat" if abs(change) < 1e-9 else "up" if change > 0 else "down"
     return {
         "metric": metric,
         "count": n,
@@ -166,8 +167,8 @@ def _interpret_r(r: float) -> str:
 
 def correlate(records: dict[str, dict[str, Any]], metric_a: str, metric_b: str, lag_days: int = 0) -> dict[str, Any]:
     """Correlate metric_a on day D with metric_b on day D+lag_days."""
-    a_by_day = {d: v for d, v in _series(records, metric_a)}
-    b_by_day = {d: v for d, v in _series(records, metric_b)}
+    a_by_day = dict(_series(records, metric_a))
+    b_by_day = dict(_series(records, metric_b))
     xs: list[float] = []
     ys: list[float] = []
     for day, a_val in a_by_day.items():

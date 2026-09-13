@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping
+from typing import Any
 from urllib.parse import urlsplit
 
 from fastmcp.server.auth import OAuthProxy
@@ -62,10 +63,10 @@ def public_base_url(env: Mapping[str, str]) -> str:
     return base_url
 
 
-class AllowlistedGitHubTokenVerifier(GitHubTokenVerifier):
+class AllowlistedGitHubTokenVerifier(GitHubTokenVerifier):  # type: ignore[misc, unused-ignore]
     """Accept a valid GitHub token only when its login is allowlisted."""
 
-    def __init__(self, allowed_users: frozenset[str], **kwargs) -> None:
+    def __init__(self, allowed_users: frozenset[str], **kwargs: Any) -> None:
         if not allowed_users:
             raise McpAuthConfigurationError("OURA_MCP_ALLOWED_GITHUB_USERS must contain at least one GitHub login.")
         super().__init__(**kwargs)

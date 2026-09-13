@@ -2,12 +2,26 @@
 
 Subcommands:
   (default) / serve   Run the MCP server (stdio by default, or --transport http).
+  run                 Alias for ``serve``.
   login               Authenticate with Oura via OAuth2 and store tokens.
+
+Logging goes to stderr (stdout carries the MCP stdio transport). Set
+``OURA_MCP_LOG_LEVEL`` (default ``INFO``) to adjust verbosity.
 """
 
 import argparse
+import logging
 import os
 import sys
+
+_LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+
+def _configure_logging() -> None:
+    level = os.environ.get("OURA_MCP_LOG_LEVEL", "INFO").strip().upper() or "INFO"
+    if not isinstance(logging.getLevelName(level), int):
+        level = "INFO"
+    logging.basicConfig(level=level, stream=sys.stderr, format=_LOG_FORMAT)
 
 
 def _serve(argv: list[str]) -> None:
@@ -37,6 +51,7 @@ def _serve(argv: list[str]) -> None:
 
 
 def main() -> None:
+    _configure_logging()
     argv = sys.argv[1:]
     command = argv[0] if argv else "serve"
 

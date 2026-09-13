@@ -14,13 +14,14 @@ import sys
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any, ClassVar
 
 import httpx
 
-from .auth import StoredToken, load_token, save_token, token_file_path
+from .auth import OURA_TOKEN_URL, StoredToken, load_token, save_token, token_file_path
 
 OURA_AUTHORIZE_URL = "https://cloud.ouraring.com/oauth/authorize"
-OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token"
+OURA_DEVELOPER_PORTAL_URL = "https://developer.ouraring.com/"
 
 # Broad read scopes so every tool has data. `email`/`personal` cover profile;
 # `daily` covers the daily_* summaries; the rest gate their named resources.
@@ -52,9 +53,9 @@ _ERROR_HTML = (
 class _CallbackHandler(BaseHTTPRequestHandler):
     """Captures the ``?code=...&state=...`` redirect from Oura."""
 
-    result: dict[str, str] = {}
+    result: ClassVar[dict[str, str]] = {}
 
-    def do_GET(self) -> None:  # noqa: N802 (stdlib signature)
+    def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
         if "code" in params or "error" in params:
@@ -68,7 +69,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, *args) -> None:  # silence default stderr logging
+    def log_message(self, *args: Any) -> None:  # silence default stderr logging
         pass
 
 
@@ -172,7 +173,7 @@ def login_command(argv: list[str] | None = None) -> int:
     if not args.client_id or not args.client_secret:
         print(
             "Missing OAuth credentials. Register an app at "
-            "https://cloud.ouraring.com/oauth/applications with redirect URI\n"
+            f"{OURA_DEVELOPER_PORTAL_URL} with redirect URI\n"
             f"  http://localhost:{args.port}/callback\n"
             "then pass --client-id/--client-secret or set OURA_CLIENT_ID / "
             "OURA_CLIENT_SECRET.",

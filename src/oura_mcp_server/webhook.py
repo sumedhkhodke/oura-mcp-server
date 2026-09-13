@@ -19,9 +19,9 @@ from typing import Any
 import httpx
 
 from .auth import load_token
-from .client import OuraError
+from .client import OuraError, api_base_url
 
-WEBHOOK_BASE = "https://api.ouraring.com/v2/webhook/subscription"
+WEBHOOK_PATH = "/webhook/subscription"
 
 EVENT_TYPES = ("create", "update", "delete")
 DATA_TYPES = (
@@ -69,6 +69,7 @@ class WebhookClient:
     ) -> None:
         if client_id is None or client_secret is None:
             client_id, client_secret = client_credentials()
+        self._base = api_base_url() + WEBHOOK_PATH
         self._client = httpx.AsyncClient(
             headers={"x-client-id": client_id, "x-client-secret": client_secret},
             timeout=timeout,
@@ -93,12 +94,12 @@ class WebhookClient:
         return resp.json()
 
     async def list(self) -> Any:
-        return await self._do("GET", WEBHOOK_BASE)
+        return await self._do("GET", self._base)
 
     async def create(self, callback_url: str, verification_token: str, event_type: str, data_type: str) -> Any:
         return await self._do(
             "POST",
-            WEBHOOK_BASE,
+            self._base,
             json={
                 "callback_url": callback_url,
                 "verification_token": verification_token,
@@ -108,7 +109,7 @@ class WebhookClient:
         )
 
     async def delete(self, subscription_id: str) -> Any:
-        return await self._do("DELETE", f"{WEBHOOK_BASE}/{subscription_id}")
+        return await self._do("DELETE", f"{self._base}/{subscription_id}")
 
     async def renew(self, subscription_id: str) -> Any:
-        return await self._do("PUT", f"{WEBHOOK_BASE}/renew/{subscription_id}")
+        return await self._do("PUT", f"{self._base}/renew/{subscription_id}")
