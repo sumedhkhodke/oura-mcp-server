@@ -2,7 +2,7 @@
 
 These helpers fetch the underlying endpoints and reduce them to tidy per-day
 scalar series so the higher-level MCP tools can summarize, trend, and correlate
-without each re-implementing the plumbing. No third-party math deps — Pearson
+without each re-implementing the plumbing. No third-party math deps; Pearson
 is computed directly.
 """
 

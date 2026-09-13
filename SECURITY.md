@@ -15,7 +15,7 @@ credit (if you want it) are published in the release notes.
 ## Scope
 
 This server stores Oura OAuth tokens on disk (`~/.oura-mcp/tokens.json` or
-`OURA_TOKEN_FILE`), refreshes them at runtime, and — in HTTP mode — fronts a
+`OURA_TOKEN_FILE`), refreshes them at runtime, and in HTTP mode fronts a
 personal health account behind a GitHub OAuth allowlist. Bugs in token handling,
 token persistence, the GitHub OAuth proxy or allowlist, and the `/webhook` route's
 verification-token gate are all in scope, as is anything that leaks health data to

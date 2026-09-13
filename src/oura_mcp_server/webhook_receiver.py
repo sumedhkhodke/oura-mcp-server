@@ -3,7 +3,7 @@
 The ``/webhook`` HTTP route (see ``server.py``) answers Oura's verification
 challenge and records pushed events here. The buffer is in-memory only: it holds
 the most recent ``MAX_EVENTS`` events and is cleared on process restart. Oura
-event payloads carry only identifiers (event/data type, object id, user id) —
+event payloads carry only identifiers (event/data type, object id, user id);
 the actual data is fetched from the API using the object id.
 """
 

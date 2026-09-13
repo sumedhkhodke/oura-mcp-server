@@ -3,11 +3,11 @@
 Three ways to authenticate, resolved automatically at runtime by
 :func:`default_token_source` (highest precedence first):
 
-1. ``OURA_REFRESH_TOKEN`` + ``OURA_CLIENT_ID`` + ``OURA_CLIENT_SECRET`` env vars
-   — headless refresh mode for containers where ``oura-mcp-server login`` can't
+1. ``OURA_REFRESH_TOKEN`` + ``OURA_CLIENT_ID`` + ``OURA_CLIENT_SECRET`` env vars:
+   headless refresh mode for containers where ``oura-mcp-server login`` can't
    run. Optionally seeded with ``OURA_ACCESS_TOKEN``; refreshed tokens are
    persisted to the token file.
-2. ``OURA_ACCESS_TOKEN`` env var alone — a static bearer token (a legacy
+2. ``OURA_ACCESS_TOKEN`` env var alone: a static bearer token (a legacy
    Personal Access Token, or any access token you paste in). Cannot self-refresh.
 3. An OAuth2 token file written by ``oura-mcp-server login`` (default
    ``~/.oura-mcp/tokens.json``). Auto-refreshes using the stored refresh token.
@@ -67,7 +67,7 @@ class StoredToken:
 
     def is_expired(self) -> bool:
         if self.expires_at is None:
-            return False  # long-lived / unknown — assume valid, refresh on 401
+            return False  # long-lived / unknown; assume valid, refresh on 401
         return time.time() >= (self.expires_at - _EXPIRY_SKEW_SECONDS)
 
     @classmethod
@@ -195,11 +195,11 @@ def default_token_source() -> TokenSource:
     Precedence:
 
     1. ``OURA_REFRESH_TOKEN`` + ``OURA_CLIENT_ID`` + ``OURA_CLIENT_SECRET`` in
-       the env — headless refresh mode for deployments (containers) where
+       the env: headless refresh mode for deployments (containers) where
        ``oura-mcp-server login`` can't run. Seeds a refreshable source from the
        env (plus ``OURA_ACCESS_TOKEN`` if given); refreshed tokens persist to
        the token file, which then wins on later resolutions.
-    2. ``OURA_ACCESS_TOKEN`` alone — a static bearer (legacy PAT); can't refresh.
+    2. ``OURA_ACCESS_TOKEN`` alone: a static bearer (legacy PAT); can't refresh.
     3. The token file written by ``oura-mcp-server login``.
     """
     env_token = os.environ.get("OURA_ACCESS_TOKEN")
