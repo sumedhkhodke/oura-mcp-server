@@ -19,12 +19,10 @@ RUN apt-get update \
 
 # Dependencies first (cached unless the lockfile changes), then the package itself.
 COPY pyproject.toml uv.lock README.md LICENSE ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-dev --no-install-project
 
 COPY src ./src
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --no-editable \
+RUN uv sync --locked --no-dev --no-editable \
     && chown -R appuser:appuser /app
 
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
