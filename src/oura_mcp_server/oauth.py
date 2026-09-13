@@ -24,7 +24,19 @@ OURA_TOKEN_URL = "https://api.ouraring.com/oauth/token"
 
 # Broad read scopes so every tool has data. `email`/`personal` cover profile;
 # `daily` covers the daily_* summaries; the rest gate their named resources.
-DEFAULT_SCOPES = ["email", "personal", "daily", "heartrate", "workout", "tag", "session", "spo2"]
+DEFAULT_SCOPES = [
+    "email",
+    "personal",
+    "daily",
+    "heartrate",
+    "workout",
+    "tag",
+    "session",
+    "spo2",
+    "ring_configuration",
+    "stress",
+    "heart_health",
+]
 
 _SUCCESS_HTML = (
     b"<html><body style='font-family:sans-serif;text-align:center;padding-top:4em'>"
