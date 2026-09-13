@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+.env.*
+!.env.example
+tokens.json
+.oura-mcp/
+.claude/settings.local.json
