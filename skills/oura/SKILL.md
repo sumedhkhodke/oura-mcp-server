@@ -2,7 +2,7 @@
 name: oura
 description: Query Oura Ring health data — sleep, readiness, activity, workouts, HR, HRV, stress, SpO2, trends, and correlations
 argument-hint: "[briefing | sleep | readiness | activity | workouts | stress | spo2 | sessions | tags | hr <start> <end> | trend <metric> [days] | correlate <m1> <m2> [lag]]"
-allowed-tools: mcp__oura__get_daily_briefing, mcp__oura__get_daily_sleep, mcp__oura__get_daily_readiness, mcp__oura__get_daily_activity, mcp__oura__get_sleep_periods, mcp__oura__get_daily_spo2, mcp__oura__get_daily_stress, mcp__oura__get_daily_resilience, mcp__oura__get_daily_cardiovascular_age, mcp__oura__get_vo2_max, mcp__oura__get_heart_rate, mcp__oura__get_workouts, mcp__oura__get_sessions, mcp__oura__get_sleep_time, mcp__oura__get_rest_mode_periods, mcp__oura__get_tags, mcp__oura__get_personal_info, mcp__oura__get_ring_configuration, mcp__oura__get_metric_trend, mcp__oura__get_metric_correlation
+allowed-tools: mcp__oura__get_daily_briefing, mcp__plugin_oura_oura__get_daily_briefing, mcp__oura__get_daily_sleep, mcp__plugin_oura_oura__get_daily_sleep, mcp__oura__get_daily_readiness, mcp__plugin_oura_oura__get_daily_readiness, mcp__oura__get_daily_activity, mcp__plugin_oura_oura__get_daily_activity, mcp__oura__get_sleep_periods, mcp__plugin_oura_oura__get_sleep_periods, mcp__oura__get_daily_spo2, mcp__plugin_oura_oura__get_daily_spo2, mcp__oura__get_daily_stress, mcp__plugin_oura_oura__get_daily_stress, mcp__oura__get_daily_resilience, mcp__plugin_oura_oura__get_daily_resilience, mcp__oura__get_daily_cardiovascular_age, mcp__plugin_oura_oura__get_daily_cardiovascular_age, mcp__oura__get_vo2_max, mcp__plugin_oura_oura__get_vo2_max, mcp__oura__get_heart_rate, mcp__plugin_oura_oura__get_heart_rate, mcp__oura__get_workouts, mcp__plugin_oura_oura__get_workouts, mcp__oura__get_sessions, mcp__plugin_oura_oura__get_sessions, mcp__oura__get_sleep_time, mcp__plugin_oura_oura__get_sleep_time, mcp__oura__get_rest_mode_periods, mcp__plugin_oura_oura__get_rest_mode_periods, mcp__oura__get_tags, mcp__plugin_oura_oura__get_tags, mcp__oura__get_personal_info, mcp__plugin_oura_oura__get_personal_info, mcp__oura__get_ring_configuration, mcp__plugin_oura_oura__get_ring_configuration, mcp__oura__get_metric_trend, mcp__plugin_oura_oura__get_metric_trend, mcp__oura__get_metric_correlation, mcp__plugin_oura_oura__get_metric_correlation
 ---
 
 # /oura — Oura Ring Health Data
@@ -18,8 +18,16 @@ it based on their setup:
 - **Local (stdio) server:** run `uv run oura-mcp-server login` in the server
   repo (reuses saved app credentials; pass `--client-id`/`--client-secret` on
   first ever login).
+- **Plugin install:** the server runs from the plugin root, so run the same
+  `login` command from there — marketplace installs live under
+  `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` (e.g.
+  `~/.claude/plugins/cache/oura-plugins/oura/<version>`). Tokens are saved
+  to `~/.oura-mcp/tokens.json` and survive plugin updates.
 - **Remote (HTTP) server:** reconnect the MCP server and complete the GitHub
-  OAuth flow. Access is limited to GitHub users allowlisted by the server.
+  OAuth flow. Access is limited to GitHub users allowlisted by the server:
+  if it is someone else's hosted server you must be on its
+  `OURA_MCP_ALLOWED_GITHUB_USERS` list, otherwise deploy your own (see the
+  README's Remote / HTTP transport section).
 
 If tools return empty data, remind the user that most endpoints require an
 active Oura membership, and that today's data syncs only after the ring syncs
