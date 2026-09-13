@@ -170,7 +170,7 @@ async def get_vo2_max(start_date: str | None = None, end_date: str | None = None
 async def get_heart_rate(start_datetime: str | None = None, end_datetime: str | None = None) -> dict[str, Any]:
     """Time-series heart rate samples (bpm) with source (awake/sleep/rest/
     workout) and timestamp. Uses ISO 8601 datetimes; defaults to the last 24
-    hours. Windows can be large — this is raw samples, not a daily summary."""
+    hours. Windows can be large; this is raw samples, not a daily summary."""
     try:
         end_dt = _parse_datetime(end_datetime) if end_datetime else datetime.now(timezone.utc)
         start_dt = _parse_datetime(start_datetime) if start_datetime else end_dt - timedelta(days=1)
@@ -228,7 +228,7 @@ async def get_rest_mode_periods(start_date: str | None = None, end_date: str | N
 
 @mcp.tool
 async def get_tags(start_date: str | None = None, end_date: str | None = None) -> dict[str, Any]:
-    """Enhanced Tags — user-logged notes/events (e.g. caffeine, alcohol,
+    """Enhanced Tags: user-logged notes/events (e.g. caffeine, alcohol,
     naps, symptoms) with timestamps and optional comments."""
     return await _collection("enhanced_tag", start_date, end_date)
 
@@ -264,7 +264,7 @@ async def get_daily_briefing(start_date: str | None = None, end_date: str | None
     """Combined day-by-day recovery briefing: Sleep/Readiness/Activity scores
     plus total sleep hours, resting heart rate, average HRV, temperature
     deviation, steps, and active calories for each day. The 'how am I doing?'
-    tool — one call instead of stitching several endpoints together. Defaults
+    tool: one call instead of stitching several endpoints together. Defaults
     to the last 7 days."""
     try:
         dates = _default_dates(start_date, end_date)
@@ -318,7 +318,7 @@ async def get_metric_correlation(
     """Pearson correlation between two metrics over the last N days.
 
     Set `lag_days` to relate metric_a on a given day to metric_b that many days
-    later — e.g. metric_a='total_sleep_hours', metric_b='readiness_score',
+    later, e.g. metric_a='total_sleep_hours', metric_b='readiness_score',
     lag_days=1 answers "how does last night's sleep affect tomorrow's
     readiness?". Valid metrics: sleep_score, readiness_score, activity_score,
     total_sleep_hours, sleep_efficiency, resting_heart_rate, average_hrv,
@@ -417,7 +417,7 @@ async def create_webhook_subscription(
     `event_type` is one of create/update/delete. `data_type` is a resource like
     daily_sleep, daily_readiness, workout, sleep, tag, etc. Oura verifies the
     subscription by sending a challenge GET to `callback_url` that your server
-    must echo — so your callback endpoint must be publicly reachable first."""
+    must echo, so your callback endpoint must be publicly reachable first."""
     if event_type not in EVENT_TYPES:
         return {"error": f"event_type must be one of {EVENT_TYPES}"}
     if data_type not in DATA_TYPES:
@@ -473,7 +473,7 @@ async def get_recent_webhook_events(limit: int = 50) -> dict[str, Any]:
     """Recent Oura webhook events received by this server's /webhook endpoint.
 
     Newest first. The buffer is in-memory (last 200 events) and clears on server
-    restart. Events carry identifiers only (data_type, object_id, user_id) — use
+    restart. Events carry identifiers only (data_type, object_id, user_id); use
     the matching get_* tool to fetch the actual data."""
     events = webhook_receiver.recent_events(limit)
     return {"count": len(events), "events": events}

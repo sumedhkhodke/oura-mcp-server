@@ -2,9 +2,9 @@
 
 # oura-mcp-server
 
-[![CI](https://github.com/sumedhkhodke/oura-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/sumedhkhodke/oura-mcp-server/actions/workflows/ci.yml) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sumedhkhodke/oura-mcp-server) [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/) [![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-000000?style=flat&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io) [![FastMCP](https://img.shields.io/badge/FastMCP-4.x-6E56CF?style=flat)](https://gofastmcp.com) [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat&logo=opensourceinitiative&logoColor=white)](LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat)](#contributing) [![GitHub last commit](https://img.shields.io/github/last-commit/sumedhkhodke/oura-mcp-server?style=flat)](https://github.com/sumedhkhodke/oura-mcp-server/commits/main) [![GitHub issues](https://img.shields.io/github/issues/sumedhkhodke/oura-mcp-server?style=flat)](https://github.com/sumedhkhodke/oura-mcp-server/issues) [![Star History](https://img.shields.io/github/stars/sumedhkhodke/oura-mcp-server?style=flat&logo=github&label=Stars)](https://github.com/sumedhkhodke/oura-mcp-server/stargazers)
+[![CI](https://github.com/sumedhkhodke/oura-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/sumedhkhodke/oura-mcp-server/actions/workflows/ci.yml) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sumedhkhodke/oura-mcp-server) [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/) [![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-000000?style=flat&logo=modelcontextprotocol&logoColor=white)](https://modelcontextprotocol.io) [![FastMCP](https://img.shields.io/badge/FastMCP-4.x-6E56CF?style=flat)](https://gofastmcp.com) [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat&logo=opensourceinitiative&logoColor=white)](LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat)](#contributing) [![GitHub last commit](https://img.shields.io/github/last-commit/sumedhkhodke/oura-mcp-server?style=flat)](https://github.com/sumedhkhodke/oura-mcp-server/commits/main) [![GitHub issues](https://img.shields.io/github/issues/sumedhkhodke/oura-mcp-server?style=flat)](https://github.com/sumedhkhodke/oura-mcp-server/issues) [![Star History](https://img.shields.io/github/stars/sumedhkhodke/oura-mcp-server?label=Stars&logo=github&style=flat)](https://github.com/sumedhkhodke/oura-mcp-server/stargazers)
 
-**Your Oura Ring data as read-only MCP tools for Claude — sleep, readiness, HRV, workouts, trends, and correlations.**
+**Your Oura Ring data as read-only MCP tools for Claude: sleep, readiness, HRV, workouts, trends, and correlations.**
 
 </div>
 
@@ -63,7 +63,7 @@ Metrics for `get_metric_trend` / `get_metric_correlation`: `sleep_score`, `readi
 `activity_score`, `total_sleep_hours`, `sleep_efficiency`, `resting_heart_rate`, `average_hrv`,
 `temperature_deviation`, `steps`, `active_calories`.
 
-**Prompts** — `analyze_recovery`, `weekly_review`, `sleep_optimization`.
+**Prompts:** `analyze_recovery`, `weekly_review`, `sleep_optimization`.
 
 ## Authentication
 
@@ -72,7 +72,7 @@ OAuth2:
 1. Create an application at <https://developer.ouraring.com/> with redirect URI exactly
    `http://localhost:8080/callback` (change the port with `--port` / `OURA_REDIRECT_PORT`). The
    legacy `cloud.ouraring.com` portal can only edit apps created before the move.
-2. Log in — opens your browser, saves tokens to `~/.oura-mcp/tokens.json`, and the server
+2. Log in. This opens your browser, saves tokens to `~/.oura-mcp/tokens.json`, and the server
    auto-refreshes them at runtime. Re-running `login` reuses saved credentials.
 
    ```bash
@@ -81,9 +81,9 @@ OAuth2:
 
 Credential precedence at runtime (see `auth.default_token_source`):
 
-1. `OURA_REFRESH_TOKEN` + `OURA_CLIENT_ID` + `OURA_CLIENT_SECRET` — headless refresh mode for
+1. `OURA_REFRESH_TOKEN` + `OURA_CLIENT_ID` + `OURA_CLIENT_SECRET`: headless refresh mode for
    containers; the rotated pair is persisted to `OURA_TOKEN_FILE`, which then wins on restart.
-2. `OURA_ACCESS_TOKEN` alone — a static bearer. A legacy (pre-Dec-2025) PAT works here; an OAuth
+2. `OURA_ACCESS_TOKEN` alone: a static bearer. A legacy (pre-Dec-2025) PAT works here; an OAuth
    access token expires after 30 days and cannot self-refresh.
 3. The token file written by `login`.
 
@@ -91,7 +91,7 @@ See [`.env.example`](.env.example) for every variable.
 
 ## Remote / HTTP transport
 
-For a hosted deployment, run the Streamable HTTP transport — endpoint `http://<host>:<port>/mcp`:
+For a hosted deployment, run the Streamable HTTP transport. The endpoint is `http://<host>:<port>/mcp`:
 
 ```bash
 oura-mcp-server serve --transport http --host 0.0.0.0 --port 8000
@@ -139,7 +139,7 @@ railway domain
 ```
 
 Oura refresh tokens are single-use and rotate on every refresh, so `OURA_TOKEN_FILE` must point
-inside the volume — otherwise a restart falls back to the already-consumed env seed and the
+inside the volume. Otherwise a restart falls back to the already-consumed env seed and the
 server can no longer refresh. `docker-entrypoint.sh` creates and chowns that directory before
 dropping privileges. Railway injects `PORT`; your MCP endpoint is `https://<your-app>.up.railway.app/mcp`.
 With the GitHub source connected, every push to `main` deploys.
@@ -150,7 +150,7 @@ A hosted server only admits the GitHub users on its allowlist, so you must deplo
 rather than pointing at someone else's URL.
 
 **Claude web:** in **Customize → Connectors**, choose **Add custom connector** and enter
-`https://<your-app>.up.railway.app/mcp`. Leave the advanced client ID/secret fields empty —
+`https://<your-app>.up.railway.app/mcp`. Leave the advanced client ID/secret fields empty.
 Claude uses Dynamic Client Registration and opens the GitHub authorization flow when you connect.
 
 **Claude Code:**
@@ -204,8 +204,8 @@ The HTTP server exposes a built-in `/webhook` route so Oura can push change noti
 It sits outside the MCP auth layer and is gated by `OURA_WEBHOOK_VERIFICATION_TOKEN`: until that
 variable is set the route answers `503`. With it set, the route answers Oura's verification
 `challenge` (GET) and buffers the last 200 events in memory (POST); read them back with
-`get_recent_webhook_events`. The buffer clears on restart, and events carry identifiers only —
-fetch the data with the matching `get_*` tool.
+`get_recent_webhook_events`. The buffer clears on restart, and events carry identifiers only.
+Fetch the data with the matching `get_*` tool.
 
 Create a subscription with `create_webhook_subscription`, passing `https://<host>/webhook` as
 `callback_url` and the same token as `verification_token`. Subscriptions expire and must be
@@ -227,10 +227,10 @@ only when `CLAUDE_CODE_REMOTE=true` (Claude Code on the web); it is a no-op loca
 ## Contributing
 
 Contributions are welcome. For anything larger than a small fix, please open an issue first to
-discuss the change, then submit a pull request — CI (lint, format, tests on all supported Python
+discuss the change, then submit a pull request. CI (lint, format, tests on all supported Python
 versions) must be green. See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-Apache-2.0 — see [LICENSE](LICENSE). Unofficial; not affiliated with Ōura Health Oy.
+Apache-2.0, see [LICENSE](LICENSE). Unofficial; not affiliated with Ōura Health Oy.
 Verify anything health-related with the Oura app and a professional.

@@ -136,7 +136,7 @@ def run_login(
     if "error" in result:
         raise SystemExit(f"Authorization denied: {result.get('error')} {result.get('error_description', '')}")
     if result.get("state") != state:
-        raise SystemExit("State mismatch — possible CSRF; aborting.")
+        raise SystemExit("State mismatch (possible CSRF); aborting.")
 
     token = exchange_code_for_token(client_id, client_secret, result["code"], redirect_uri)
     path = save_token(token)
@@ -188,5 +188,5 @@ def login_command(argv: list[str] | None = None) -> int:
         scopes=args.scopes,
         open_browser=not args.no_browser,
     )
-    print(f"\nDone. Start the server normally — it will read {token_file_path()}.")
+    print(f"\nDone. Start the server normally; it will read {token_file_path()}.")
     return 0

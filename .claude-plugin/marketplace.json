@@ -1,12 +1,12 @@
 {
   "name": "oura-plugins",
-  "description": "Oura Ring integration for Claude — MCP server + /oura skill",
+  "description": "Oura Ring integration for Claude: MCP server + /oura skill",
   "owner": { "name": "sumedhkhodke" },
   "plugins": [
     {
       "name": "oura",
       "source": "./",
-      "description": "Oura Ring health data for Claude — MCP server plus a /oura skill",
+      "description": "Oura Ring health data for Claude: MCP server plus a /oura skill",
       "version": "0.1.0"
     }
   ]

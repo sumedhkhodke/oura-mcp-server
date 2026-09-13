@@ -8,7 +8,7 @@ the webhook endpoints authenticate with the OAuth **application** credentials
 Creating a subscription triggers a verification handshake: Oura sends a GET to
 your ``callback_url`` with a challenge that your server must echo back, and
 subscriptions expire and must be renewed. Running that callback endpoint is your
-responsibility — these tools manage the subscriptions themselves.
+responsibility; these tools manage the subscriptions themselves.
 """
 
 from __future__ import annotations

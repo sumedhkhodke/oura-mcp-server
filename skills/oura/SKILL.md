@@ -1,11 +1,11 @@
 ---
 name: oura
-description: Query Oura Ring health data — sleep, readiness, activity, workouts, HR, HRV, stress, SpO2, trends, and correlations
+description: Query Oura Ring health data: sleep, readiness, activity, workouts, HR, HRV, stress, SpO2, trends, and correlations
 argument-hint: "[briefing | sleep | readiness | activity | workouts | stress | spo2 | sessions | tags | hr <start> <end> | trend <metric> [days] | correlate <m1> <m2> [lag]]"
 allowed-tools: mcp__oura__get_daily_briefing, mcp__plugin_oura_oura__get_daily_briefing, mcp__oura__get_daily_sleep, mcp__plugin_oura_oura__get_daily_sleep, mcp__oura__get_daily_readiness, mcp__plugin_oura_oura__get_daily_readiness, mcp__oura__get_daily_activity, mcp__plugin_oura_oura__get_daily_activity, mcp__oura__get_sleep_periods, mcp__plugin_oura_oura__get_sleep_periods, mcp__oura__get_daily_spo2, mcp__plugin_oura_oura__get_daily_spo2, mcp__oura__get_daily_stress, mcp__plugin_oura_oura__get_daily_stress, mcp__oura__get_daily_resilience, mcp__plugin_oura_oura__get_daily_resilience, mcp__oura__get_daily_cardiovascular_age, mcp__plugin_oura_oura__get_daily_cardiovascular_age, mcp__oura__get_vo2_max, mcp__plugin_oura_oura__get_vo2_max, mcp__oura__get_heart_rate, mcp__plugin_oura_oura__get_heart_rate, mcp__oura__get_workouts, mcp__plugin_oura_oura__get_workouts, mcp__oura__get_sessions, mcp__plugin_oura_oura__get_sessions, mcp__oura__get_sleep_time, mcp__plugin_oura_oura__get_sleep_time, mcp__oura__get_rest_mode_periods, mcp__plugin_oura_oura__get_rest_mode_periods, mcp__oura__get_tags, mcp__plugin_oura_oura__get_tags, mcp__oura__get_personal_info, mcp__plugin_oura_oura__get_personal_info, mcp__oura__get_ring_configuration, mcp__plugin_oura_oura__get_ring_configuration, mcp__oura__get_metric_trend, mcp__plugin_oura_oura__get_metric_trend, mcp__oura__get_metric_correlation, mcp__plugin_oura_oura__get_metric_correlation
 ---
 
-# /oura — Oura Ring Health Data
+# /oura: Oura Ring Health Data
 
 Query and present Oura Ring health data conversationally, leading with insight
 rather than raw numbers.
@@ -19,7 +19,7 @@ it based on their setup:
   repo (reuses saved app credentials; pass `--client-id`/`--client-secret` on
   first ever login).
 - **Plugin install:** the server runs from the plugin root, so run the same
-  `login` command from there — marketplace installs live under
+  `login` command from there. Marketplace installs live under
   `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` (e.g.
   `~/.claude/plugins/cache/oura-plugins/oura/<version>`). Tokens are saved
   to `~/.oura-mcp/tokens.json` and survive plugin updates.
@@ -70,11 +70,11 @@ Metrics for `trend`/`correlate`: `sleep_score`, `readiness_score`,
 ### Briefing (default)
 
 1. Call `get_daily_briefing` (defaults to the last 7 days; today may be absent
-   until the ring syncs — use the most recent day and say which day it is).
+   until the ring syncs; use the most recent day and say which day it is).
 2. Lead with the three scores (Sleep / Readiness / Activity) as headline
    numbers, then anything notable: short sleep, elevated resting HR, HRV dip,
    temperature deviation, unusually low steps.
-3. Keep it to 3–5 sentences. Offer: "Want the sleep detail, a trend, or a
+3. Keep it to 3 to 5 sentences. Offer: "Want the sleep detail, a trend, or a
    correlation?"
 
 ### Sleep
@@ -87,14 +87,14 @@ Metrics for `trend`/`correlate`: `sleep_score`, `readiness_score`,
 
 1. `get_daily_readiness`.
 2. Headline score, top positive and negative contributors, one actionable
-   line (e.g., "recovery looks solid — good day to push" or "below baseline —
+   line (e.g., "recovery looks solid, good day to push" or "below baseline,
    take it easy").
 
 ### Activity / Workouts / Stress / SpO2 / Sessions / Tags
 
 Call the matching tool; present compactly. Workouts: type, duration, calories,
 intensity per entry. Stress: high-stress vs. recovery minutes and the balance.
-SpO2: percentage and whether it's in the normal 95–100% range. No data → say
+SpO2: percentage and whether it's in the normal 95 to 100% range. No data → say
 so plainly.
 
 ### Heart rate window
@@ -114,12 +114,12 @@ so plainly.
 1. `get_metric_correlation` with both metrics; use `lag_days=1` when the
    question is "does last night's X affect tomorrow's Y".
 2. Report the coefficient with a plain-language read (|r| < 0.3 weak,
-   0.3–0.7 moderate, > 0.7 strong) and the sample size. With fewer than ~10
+   0.3 to 0.7 moderate, > 0.7 strong) and the sample size. With fewer than ~10
    paired days, caveat that the sample is small.
 
 ## Presentation Rules
 
 - Insight first, numbers second; never dump raw JSON.
 - Compare against the person's own recent baseline, not population norms.
-- This is wellness data, not medical advice — for anything symptom-like,
+- This is wellness data, not medical advice. For anything symptom-like,
   suggest the Oura app and a professional.
