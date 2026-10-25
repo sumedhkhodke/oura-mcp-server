@@ -104,8 +104,7 @@ def test_login_command_points_to_developer_portal(capsys, monkeypatch, tmp_path)
     tokens = [t.strip(".,;:!?()[]{}<>\"'") for t in err.split()]
     parsed_urls = [urlparse(t) for t in tokens if "://" in t]
     assert any(
-        p.scheme == "https" and p.hostname == "developer.ouraring.com" and (p.path in ("", "/"))
-        for p in parsed_urls
+        p.scheme == "https" and p.hostname == "developer.ouraring.com" and (p.path in ("", "/")) for p in parsed_urls
     )
     assert "cloud.ouraring.com/oauth/applications" not in err
 
