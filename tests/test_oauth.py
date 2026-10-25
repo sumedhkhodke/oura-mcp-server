@@ -100,7 +100,8 @@ def test_login_command_points_to_developer_portal(capsys, monkeypatch, tmp_path)
     monkeypatch.setenv("OURA_TOKEN_FILE", str(tmp_path / "none.json"))
     assert oauth.login_command(["--no-browser"]) == 2
     err = capsys.readouterr().err
-    assert "https://developer.ouraring.com/" in err
+    tokens = {t.strip(".,;:!?()[]{}<>\"'") for t in err.split()}
+    assert "https://developer.ouraring.com/" in tokens
     assert "cloud.ouraring.com/oauth/applications" not in err
 
 
