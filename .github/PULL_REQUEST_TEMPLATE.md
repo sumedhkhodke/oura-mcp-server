@@ -16,6 +16,9 @@ Key implementation details, if non-obvious.
 
 ## Checklist
 
+- [ ] This PR targets `staging`, not `main` (see [CONTRIBUTING.md](https://github.com/sumedhkhodke/oura-mcp-server/blob/main/CONTRIBUTING.md))
+- [ ] Agreed in an issue first, or a small fix
+- [ ] Any affiliation with a product or platform this PR mentions is disclosed above
 - [ ] Lint and format pass (`uv run ruff check . && uv run ruff format --check .`)
 - [ ] Tests pass (`uv run pytest -q`)
 - [ ] New behavior has tests
