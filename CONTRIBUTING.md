@@ -60,8 +60,8 @@ vouch for. Guides for other platforms are welcome as **docs-only** pull requests
    for one platform. If the existing image doesn't work there, open an issue to discuss it.
 4. **No secrets or personal values.** Use placeholders (`<your-app>`, `<client-id>`) for every
    credential, URL, and username.
-5. **You maintain it.** Your GitHub handle goes next to the section. If it goes stale or breaks
-   and isn't fixed, the maintainer may remove it without further discussion.
+5. **You maintain it.** Your GitHub handle goes next to the section. If it goes stale or breaks,
+   you'll be tagged first; the section is removed only if it can't be brought back up to date.
 
 ## How changes reach `main`
 
@@ -71,8 +71,9 @@ your branch ──PR──▶ staging ──maintainer PR──▶ main ──�
 ```
 
 - **Open every pull request against `staging`, never `main`.** Pushes to `main` deploy
-  automatically to the maintainer's hosted server. PRs that target `main` will be retargeted or
-  closed.
+  automatically to the maintainer's hosted server. GitHub preselects `main` when you open a PR,
+  so change the base branch. A required check fails any PR into `main` that doesn't come from
+  `staging`; if you see it fail, edit the PR and switch the base to `staging`.
 - The maintainer merges approved PRs into `staging`, batches them, and opens a `staging` → `main`
   pull request. Merging that PR is the release: it deploys, and a tagged
   [GitHub Release](https://github.com/sumedhkhodke/oura-mcp-server/releases) follows.
@@ -152,7 +153,8 @@ it, run the tests, and be able to answer review questions about it.
 ## Releases (maintainer reference)
 
 Versions follow [Semantic Versioning](https://semver.org/). While the project is `0.x`, a minor
-bump covers new tools or behaviour changes and a patch bump covers fixes.
+bump covers new tools or behaviour changes and a patch bump covers fixes. Hotfixes take the same
+path: merge into `staging`, then promote.
 
 1. On `staging`, bump the version in `src/oura_mcp_server/__init__.py`,
    `.claude-plugin/plugin.json`, and `.claude-plugin/marketplace.json`.
