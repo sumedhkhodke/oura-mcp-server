@@ -9,7 +9,9 @@ Dates are ISO ``YYYY-MM-DD``. Heart rate uses ISO 8601 datetimes.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -448,7 +450,8 @@ async def oura_webhook_callback(request: Request) -> JSONResponse:
 
     Oura cannot complete the MCP OAuth flow, so this route sits outside the MCP
     auth layer. It is gated by OURA_WEBHOOK_VERIFICATION_TOKEN instead and is
-    disabled (503) when that env var is unset.
+    disabled (503) when that env var is unset. POSTs are checked against Oura's
+    HMAC signature per OURA_WEBHOOK_SIGNATURE_MODE (see webhook_receiver).
     """
     token = webhook_receiver.verification_token()
     if token is None:
@@ -459,10 +462,26 @@ async def oura_webhook_callback(request: Request) -> JSONResponse:
             return JSONResponse({"error": "bad verification token"}, status_code=403)
         return JSONResponse({"challenge": request.query_params.get("challenge", "")})
 
+    body = await request.body()
     try:
-        event = await request.json()
+        event = json.loads(body)
     except ValueError:
         return JSONResponse({"error": "invalid JSON"}, status_code=400)
+
+    mode = webhook_receiver.signature_mode()
+    if mode != "off":
+        status = webhook_receiver.verify_signature(
+            body,
+            event,
+            request.headers.get("x-oura-timestamp"),
+            request.headers.get("x-oura-signature"),
+            os.environ.get("OURA_CLIENT_SECRET"),
+        )
+        if status != "valid":
+            if mode == "enforce":
+                logger.warning("Rejected Oura webhook POST: signature %s.", status)
+                return JSONResponse({"error": "invalid signature"}, status_code=401)
+            logger.warning("Oura webhook signature %s (OURA_WEBHOOK_SIGNATURE_MODE=log; event kept).", status)
     webhook_receiver.record_event(event)
     logger.info("Oura webhook event: %s", event)
     return JSONResponse({"status": "received"})
