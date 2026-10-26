@@ -122,8 +122,9 @@ persistent storage or clients have to re-authorize after every restart.
 
 ### Reference deployment: Railway
 
-The repo ships a `Dockerfile` and `railway.json`, so Railway builds and runs the HTTP server
-directly. `login` is interactive, so the container authenticates from env instead:
+The repo ships a `Dockerfile`, which Railway detects and builds; its `CMD` runs the HTTP server.
+Leave the service's Start Command empty (it would replace the entrypoint and `$PORT` wouldn't
+expand). `login` is interactive, so the container authenticates from env instead:
 
 ```bash
 railway login

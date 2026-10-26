@@ -13,7 +13,7 @@ FastMCP server exposing one Oura Ring account's v2 API data as read-only MCP too
 - `src/oura_mcp_server/webhook.py`, `webhook_receiver.py` - Oura push subscriptions and the in-memory event buffer
 - `tests/` - pytest + respx, no live Oura calls
 - `skills/oura/SKILL.md`, `.claude-plugin/` - the `/oura` skill and Claude Code plugin packaging
-- `Dockerfile`, `docker-entrypoint.sh`, `railway.json` - hosted deployment
+- `Dockerfile`, `docker-entrypoint.sh` - hosted deployment (no `railway.json`; Railway detects the Dockerfile)
 
 <important if="you need to run commands to set up, test, lint, or run the server">
 
@@ -78,7 +78,7 @@ The Oura OAuth app is managed in Oura's new developer portal at developer.ourari
 <important if="you are deploying, changing Railway config, the Dockerfile, the entrypoint, or environment variables">
 
 - Pushes to `main` deploy automatically from the connected GitHub source. Merging a PR is the release.
-- The `Dockerfile` CMD owns startup. Do not add `startCommand` to `railway.json`; it runs without a shell and `$PORT` will not expand.
+- The `Dockerfile` CMD owns startup. Leave the Railway service's Start Command empty and don't reintroduce `railway.json`/`railway.toml` (Config as Code stops being read on 2026-12-01): a start command runs without a shell, so `$PORT` will not expand. Restart policy (ON_FAILURE ×3) is set on the service itself.
 - A volume is mounted at `/data`. `OURA_TOKEN_FILE` must point inside it, currently `/data/oura/tokens.json`, or a restart falls back to an already-consumed env refresh token. `docker-entrypoint.sh` creates and chowns that directory before dropping to `appuser`.
 - Required service variables: the three Oura refresh credentials, `OURA_TOKEN_FILE`, `FASTMCP_HOME=/data/fastmcp`, the `OURA_MCP_GITHUB_*` OAuth app settings, `OURA_MCP_ALLOWED_GITHUB_USERS`, and a stable `OURA_MCP_JWT_SIGNING_KEY`. Optional: `OURA_WEBHOOK_VERIFICATION_TOKEN`, `OURA_WEBHOOK_SIGNATURE_MODE`, `OURA_MCP_LOG_LEVEL`.
 - The image installs from `uv.lock` with `uv sync --locked --no-dev`; a dependency change needs a relock before it ships.
