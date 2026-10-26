@@ -223,3 +223,6 @@ __marimo__/
 tokens.json
 .oura-mcp/
 .claude/settings.local.json
+
+# Railway IaC tooling (.railway/package.json pins the SDK)
+.railway/node_modules/

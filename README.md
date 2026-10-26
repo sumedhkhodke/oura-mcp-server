@@ -122,9 +122,12 @@ persistent storage or clients have to re-authorize after every restart.
 
 ### Reference deployment: Railway
 
-The repo ships a `Dockerfile`, which Railway detects and builds; its `CMD` runs the HTTP server.
-Leave the service's Start Command empty (it would replace the entrypoint and `$PORT` wouldn't
-expand). `login` is interactive, so the container authenticates from env instead:
+The repo ships a `Dockerfile` (its `CMD` runs the HTTP server) and declares the Railway service in
+[`.railway/railway.ts`](.railway/railway.ts) (Railway infrastructure-as-code): Dockerfile builder, the `/data` volume,
+restart policy. Variables stay unmanaged in Railway, never in the file. Preview and apply changes from
+the repo root with `railway config plan` and `railway config apply` (the SDK is pinned in
+`.railway/package.json`; run `npm install` there first). Don't set a start command: it would replace
+the entrypoint and `$PORT` wouldn't expand. `login` is interactive, so the container authenticates from env instead:
 
 ```bash
 railway login
