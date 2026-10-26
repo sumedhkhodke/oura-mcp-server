@@ -244,8 +244,9 @@ only when `CLAUDE_CODE_REMOTE=true` (Claude Code on the web); it is a no-op loca
 ## Contributing
 
 Contributions are welcome. For anything larger than a small fix, please open an issue first to
-discuss the change, then submit a pull request. CI (lint, format, tests on all supported Python
-versions) must be green. See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+discuss the change. Pull requests target the `staging` branch, not `main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for scope, setup, conventions, and how releases work, and
+[SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
