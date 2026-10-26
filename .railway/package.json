@@ -1,0 +1,8 @@
+{
+  "name": "oura-mcp-server-railway-iac",
+  "private": true,
+  "description": "Railway infrastructure-as-code for this repo (.railway/railway.ts). Run `railway config plan` / `railway config apply` from the repo root.",
+  "dependencies": {
+    "railway": "3.16.0"
+  }
+}
