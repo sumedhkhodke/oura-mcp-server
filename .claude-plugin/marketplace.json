@@ -7,7 +7,7 @@
       "name": "oura",
       "source": "./",
       "description": "Oura Ring health data for Claude: MCP server plus a /oura skill",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }
