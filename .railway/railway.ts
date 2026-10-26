@@ -19,7 +19,9 @@ export default defineRailway(() => {
     // command runs without a shell, so $PORT would not expand.
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     replicas: { "us-west2": 1 },
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 3 },
+    // restartPolicyType defaults to ON_FAILURE; Railway reports the default as null, so
+    // declaring it would show as a permanent plan diff.
+    deploy: { restartPolicyMaxRetries: 3 },
     volumeMounts: { "/data": data },
   });
 
