@@ -207,6 +207,19 @@ variable is set the route answers `503`. With it set, the route answers Oura's v
 `get_recent_webhook_events`. The buffer clears on restart, and events carry identifiers only.
 Fetch the data with the matching `get_*` tool.
 
+Oura signs each POST: `x-oura-signature` is an uppercase hex HMAC-SHA256, keyed with your OAuth
+client secret (`OURA_CLIENT_SECRET`), over `x-oura-timestamp` plus the JSON body.
+`OURA_WEBHOOK_SIGNATURE_MODE` controls what the route does with it:
+
+| Mode | Behaviour |
+|---|---|
+| `log` (default) | Records every event; logs a warning when the signature is invalid, missing, or can't be checked. |
+| `enforce` | Answers `401` and drops anything not validly signed (fails closed without `OURA_CLIENT_SECRET`). |
+| `off` | Skips the check. |
+
+Roll out with `log`, confirm real events produce no `Oura webhook signature ...` warnings, then
+switch to `enforce`. Until then, treat `get_recent_webhook_events` output as untrusted input.
+
 Create a subscription with `create_webhook_subscription`, passing `https://<host>/webhook` as
 `callback_url` and the same token as `verification_token`. Subscriptions expire and must be
 renewed with `renew_webhook_subscription`.

@@ -66,6 +66,7 @@ The Oura OAuth app is managed in Oura's new developer portal at developer.ourari
 
 - Subscription management authenticates with the OAuth application credentials as `x-client-id` / `x-client-secret` headers, not the user bearer token.
 - The `/webhook` route is mounted outside the MCP auth layer and gated by `OURA_WEBHOOK_VERIFICATION_TOKEN`. Events go into a 200-entry in-memory buffer that is lost on restart.
+- POSTs are checked against Oura's `x-oura-signature` HMAC (client secret over timestamp + JSON body) per `OURA_WEBHOOK_SIGNATURE_MODE`: `log` (default, warn and keep), `enforce` (401 and drop), `off`. The logic lives in `webhook_receiver.verify_signature`.
 </important>
 
 <important if="you are writing or modifying tests">
@@ -79,7 +80,7 @@ The Oura OAuth app is managed in Oura's new developer portal at developer.ourari
 - Pushes to `main` deploy automatically from the connected GitHub source. Merging a PR is the release.
 - The `Dockerfile` CMD owns startup. Do not add `startCommand` to `railway.json`; it runs without a shell and `$PORT` will not expand.
 - A volume is mounted at `/data`. `OURA_TOKEN_FILE` must point inside it, currently `/data/oura/tokens.json`, or a restart falls back to an already-consumed env refresh token. `docker-entrypoint.sh` creates and chowns that directory before dropping to `appuser`.
-- Required service variables: the three Oura refresh credentials, `OURA_TOKEN_FILE`, `FASTMCP_HOME=/data/fastmcp`, the `OURA_MCP_GITHUB_*` OAuth app settings, `OURA_MCP_ALLOWED_GITHUB_USERS`, and a stable `OURA_MCP_JWT_SIGNING_KEY`. Optional: `OURA_WEBHOOK_VERIFICATION_TOKEN`, `OURA_MCP_LOG_LEVEL`.
+- Required service variables: the three Oura refresh credentials, `OURA_TOKEN_FILE`, `FASTMCP_HOME=/data/fastmcp`, the `OURA_MCP_GITHUB_*` OAuth app settings, `OURA_MCP_ALLOWED_GITHUB_USERS`, and a stable `OURA_MCP_JWT_SIGNING_KEY`. Optional: `OURA_WEBHOOK_VERIFICATION_TOKEN`, `OURA_WEBHOOK_SIGNATURE_MODE`, `OURA_MCP_LOG_LEVEL`.
 - The image installs from `uv.lock` with `uv sync --locked --no-dev`; a dependency change needs a relock before it ships.
 - If the volume is ever lost, run `login` locally and re-seed `OURA_REFRESH_TOKEN`.
 </important>
