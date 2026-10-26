@@ -1,0 +1,24 @@
+name: Base branch
+
+# Pushes to main deploy the hosted server, so main only accepts the
+# staging -> main release PR. Required by the main branch ruleset.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  staging-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the head branch to be this repo's staging
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "$HEAD_REF" != "staging" ] || [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::Pull requests into main must come from $GITHUB_REPOSITORY:staging. Change the base branch to staging; see CONTRIBUTING.md."
+            exit 1
+          fi
