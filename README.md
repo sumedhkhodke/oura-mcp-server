@@ -148,6 +148,55 @@ server can no longer refresh. `docker-entrypoint.sh` creates and chowns that dir
 dropping privileges. Railway injects `PORT`; your MCP endpoint is `https://<your-app>.up.railway.app/mcp`.
 With the GitHub source connected, every push to `main` deploys.
 
+### Reference deployment: Gagarin Cloud
+
+Maintained by [@sharpvik](https://github.com/sharpvik).
+
+[Gagarin Cloud](https://gagarin.cloud) builds the existing `Dockerfile` with the `gg` CLI and runs the
+image with a volume at `/data`; nothing is added to the repo. Secrets don't go in a deploy environment
+there: they live in `external` resources, injected under the resource's name as a prefix, so a
+resource called `oura` publishes `OURA_*` and one called `oura-mcp` publishes `OURA_MCP_*`. The volume
+is set on the first deploy and restated on every later one. Install `gg`
+(`curl -fsSL https://gagarin.cloud/install.sh | sh`), then from the repo root:
+
+```bash
+gg login
+gg init <your-project>
+gg ship <your-project>/server:8000 --volume /data --volume-size 1 \
+        --env OURA_TOKEN_FILE=/data/oura/tokens.json --env FASTMCP_HOME=/data/fastmcp
+gg domain add <your-project>/server     # prints https://server-<project-id>.apps.gagarin.cloud
+```
+
+Use that origin as the GitHub OAuth App's Homepage URL and `<origin>/auth/callback` as its callback.
+Then put the credentials in two files (keys without the prefix; don't commit them) and wire them in:
+
+```bash
+cat > .env.oura <<'EOF'
+CLIENT_ID=<oura-client-id>
+CLIENT_SECRET=<oura-client-secret>
+# refresh_token from ~/.oura-mcp/tokens.json after a local login
+REFRESH_TOKEN=<refresh-token>
+EOF
+cat > .env.oura-mcp <<'EOF'
+GITHUB_CLIENT_ID=<github-client-id>
+GITHUB_CLIENT_SECRET=<github-client-secret>
+ALLOWED_GITHUB_USERS=<your-github-login>
+BASE_URL=https://server-<project-id>.apps.gagarin.cloud
+JWT_SIGNING_KEY=<stable-random-secret>
+EOF
+gg resource add <your-project>/oura external --env-file .env.oura
+gg resource add <your-project>/oura-mcp external --env-file .env.oura-mcp
+gg deps add <your-project>/server oura oura-mcp
+gg status <your-project>
+```
+
+Between `gg ship` and `gg deps add` the container exits on start (the HTTP transport refuses to run
+without `OURA_MCP_*`); `gg deps add` restarts it holding the variables. Gagarin doesn't inject
+`PORT`, so the `CMD` default of 8000 is the port declared above. Your MCP endpoint is
+`https://server-<project-id>.apps.gagarin.cloud/mcp`. To ship a new build, repeat the `gg ship` line
+with the same volume flags; to change one secret, `gg resource rotate <your-project>/oura-mcp --set
+GITHUB_CLIENT_SECRET=<new-value>` restarts the server with it.
+
 ### Connect from Claude web / Claude Code
 
 A hosted server only admits the GitHub users on its allowlist, so you must deploy your own
