@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spec #31: Add ping MCP tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: #f6f8fa;
+            color: #24292e;
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #0d1117;
+                color: #c9d1d9;
+            }
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 2.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .container {
+                background: #161b22;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #1f6feb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            h1 {
+                color: #58a6ff;
+            }
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .subtitle {
+                color: #8b949e;
+            }
+        }
+
+        .summary-text {
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            padding: 1.25rem;
+            background: #f6f8fa;
+            border-left: 4px solid #1f6feb;
+            border-radius: 4px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .summary-text {
+                background: #0d1117;
+                border-left-color: #58a6ff;
+            }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 700px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 1.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .card {
+                border-color: #30363d;
+            }
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #1f6feb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .card h3 {
+                color: #58a6ff;
+            }
+        }
+
+        .card ul, .card ol {
+            margin-left: 1.5rem;
+        }
+
+        .card li {
+            margin-bottom: 0.75rem;
+        }
+
+        .risk-item, .question-item {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e1e4e8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .risk-item, .question-item {
+                border-bottom-color: #30363d;
+            }
+        }
+
+        .risk-item:last-child, .question-item:last-child {
+            border-bottom: none;
+        }
+
+        .risk-label, .question-label {
+            font-weight: 600;
+            color: #1f6feb;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .risk-label, .question-label {
+                color: #58a6ff;
+            }
+        }
+
+        .risk-text, .question-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #666;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .risk-text, .question-text {
+                color: #8b949e;
+            }
+        }
+
+        .response-schema {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .response-schema {
+                background: #0d1117;
+                border-color: #30363d;
+                color: #e6edf3;
+            }
+        }
+
+        .task-box {
+            border-left: 4px solid #1f6feb;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .task-box {
+                border-left-color: #58a6ff;
+            }
+        }
+
+        .task-title {
+            font-weight: 600;
+            color: #1f6feb;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .task-title {
+                color: #58a6ff;
+            }
+        }
+
+        .task-meta {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .task-meta {
+                color: #8b949e;
+            }
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .files-modified {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .file-item {
+            background: #f6f8fa;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .file-item {
+                background: #0d1117;
+                color: #8b949e;
+            }
+        }
+
+        .links {
+            margin-top: 2.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .links {
+                border-top-color: #30363d;
+            }
+        }
+
+        .links h3 {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .links h3 {
+                color: #8b949e;
+            }
+        }
+
+        .links ul {
+            list-style: none;
+        }
+
+        .links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .links a {
+            color: #1f6feb;
+            text-decoration: none;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .links a {
+                color: #58a6ff;
+            }
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .criteria-table th, .criteria-table td {
+            border: 1px solid #e1e4e8;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .criteria-table th, .criteria-table td {
+                border-color: #30363d;
+            }
+        }
+
+        .criteria-table th {
+            background: #f6f8fa;
+            font-weight: 600;
+            color: #1f6feb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .criteria-table th {
+                background: #0d1117;
+                color: #58a6ff;
+            }
+        }
+
+        .criteria-table tr:nth-child(even) {
+            background: #f6f8fa;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .criteria-table tr:nth-child(even) {
+                background: #0d1117;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>31-ping-tool</h1>
+        <p class="subtitle">Add a ping MCP tool to the Oura server</p>
+
+        <div class="summary-text">
+            <p><strong>The change:</strong> Add a lightweight MCP tool named <code>ping</code> to the Oura server that requires no credentials and makes no API calls. The tool serves as a connectivity check, returning a JSON object with three fields: the server name (<code>"oura-mcp-server"</code>), the current package version, and the current UTC timestamp. This is a throwaway feature to test the Factorial end-to-end workflow.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>🎯 Riskiest Assumptions</h3>
+                <div class="risk-item">
+                    <div class="risk-label">A2: Server name is "oura-mcp-server"</div>
+                    <div class="risk-text">The FastMCP instance name from server.py:30 is the source of truth. If wrong: one-line change.</div>
+                </div>
+                <div class="risk-item">
+                    <div class="risk-label">A5: Tool must be async</div>
+                    <div class="risk-text">All existing MCP tools are async. If wrong: MCP protocol may reject a sync tool.</div>
+                </div>
+                <div class="risk-item">
+                    <div class="risk-label">A7: README placement is separate from data tools</div>
+                    <div class="risk-text">Ping serves a different purpose (health check). If wrong: placement is cosmetic, always movable.</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>❓ Open Questions</h3>
+                <div class="question-item">
+                    <div class="question-label">Q1: Timestamp precision?</div>
+                    <div class="question-text"><strong>Proceeding as:</strong> Full microsecond precision from <code>datetime.now(timezone.utc).isoformat()</code>. Revisit if clients need coarser precision.</div>
+                </div>
+                <div class="question-item">
+                    <div class="question-label">Q2: README entry location?</div>
+                    <div class="question-text"><strong>Proceeding as:</strong> Single row in tools table. Revisit if table structure changes.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>📋 Acceptance Criteria</h3>
+            <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #666;">All 9 criteria are mechanically checkable and testable.</p>
+            <table class="criteria-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Criterion</th>
+                        <th>Coverage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>AC1</td>
+                        <td>Calling <code>ping</code> returns 200 + valid JSON object</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC2</td>
+                        <td>Response contains exactly three fields</td>
+                        <td>T2</td>
+                    </tr>
+                    <tr>
+                        <td>AC3</td>
+                        <td><code>server</code> field = "oura-mcp-server"</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC4</td>
+                        <td><code>version</code> field = package version</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC5</td>
+                        <td><code>time_utc</code> field is valid ISO 8601</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC6</td>
+                        <td>Tool takes no arguments</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC7</td>
+                        <td>Tool appears in server's tool list</td>
+                        <td>T1</td>
+                    </tr>
+                    <tr>
+                        <td>AC8</td>
+                        <td>One unit test covers response shape</td>
+                        <td>T2</td>
+                    </tr>
+                    <tr>
+                        <td>AC9</td>
+                        <td>README lists the new tool</td>
+                        <td>T3</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card full-width">
+            <h3>🔧 Tool Implementation</h3>
+            <p style="margin-bottom: 1rem; font-size: 0.9rem;">The ping tool is a simple async function that reads immutable server state and the current time.</p>
+            <pre class="response-schema">@mcp.tool
+async def ping() -> dict[str, str]:
+    """Check server availability and version."""
+    return {
+        "server": mcp.name,           # "oura-mcp-server"
+        "version": __version__,        # from __init__.py
+        "time_utc": datetime.now(...).isoformat()
+    }</pre>
+        </div>
+
+        <div class="card full-width">
+            <h3>📦 Files Modified</h3>
+            <div class="files-modified">
+                <div class="file-item">src/oura_mcp_server/server.py</div>
+                <div class="file-item">tests/test_server_tools.py</div>
+                <div class="file-item">README.md</div>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>📋 Task Breakdown (3 tasks)</h3>
+            <div class="task-box">
+                <div class="task-title">T1: Implement ping tool in server.py</div>
+                <div class="task-meta">Depends: none  |  Satisfies: AC1, AC3–7</div>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Add async function after webhook tools. No API calls, no _get_client().</p>
+            </div>
+            <div class="task-box">
+                <div class="task-title">T2: Write unit test in test_server_tools.py</div>
+                <div class="task-meta">Depends: T1  |  Satisfies: AC2, AC8</div>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Test response shape and all three fields. Uses existing @respx.mock pattern.</p>
+            </div>
+            <div class="task-box">
+                <div class="task-title">T3: Update README tools table</div>
+                <div class="task-meta">Depends: T1  |  Satisfies: AC9</div>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Add one row listing ping as "Server connectivity check: name, version, and current UTC time".</p>
+            </div>
+            <p style="margin-top: 1.5rem; font-size: 0.9rem; color: #666;"><strong>Parallelism:</strong> T1 and T3 can run in parallel (different files). T2 depends on T1 completing.</p>
+        </div>
+
+        <div class="links">
+            <h3>📄 View the Full Spec</h3>
+            <ul>
+                <li><a href="spec.md">spec.md</a> — Functional requirements and acceptance criteria</li>
+                <li><a href="plan.md">plan.md</a> — Implementation approach and affected areas</li>
+                <li><a href="tasks.md">tasks.md</a> — Ordered task list and dependencies</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
