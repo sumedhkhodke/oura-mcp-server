@@ -7,13 +7,15 @@ test step checks CI after you), and it owns all labels, assignment and promotion
 ## Task input
 
 Your task names the ticket number `<N>` and the spec directory `specs/<N>-<slug>/`. The
-spec is on `main`: your workspace is a checkout of the repository with the approved spec
+spec is on `staging`: your workspace is a checkout of the repository with the approved spec
 already in it.
+
+Project rule: every PR targets `staging`. Never open a PR against `main` and never push to `main`.
 
 ## Workspace
 
 ```bash
-git checkout -b impl/<N>-<slug> origin/main
+git checkout -b impl/<N>-<slug> origin/staging
 ```
 
 Read `AGENTS.md` before you write code. It carries the repo's invariants: build and test
@@ -37,7 +39,7 @@ git -c user.name="lil-factorial[bot]" \
 Factory-Stage: build"
 
 git push -u origin impl/<N>-<slug>
-gh pr create --base <base branch> --title "[Issue #<N>] Build: <one-line outcome>" --body-file /tmp/pr-body.md
+gh pr create --base staging --title "[Issue #<N>] Build: <one-line outcome>" --body-file /tmp/pr-body.md
 ```
 
 Commit only files you changed: no lockfile churn, no build output, no incidental

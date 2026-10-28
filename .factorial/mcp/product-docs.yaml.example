@@ -1,0 +1,73 @@
+# MCP server manifest. It is runtime-neutral, and it is the commented reference for the format.
+#
+# AN EXAMPLE, AND INERT. Nothing reads `mcp/*.yaml.example`, so this file defines no server. To
+# use it: rename it to `product-docs.yaml`, set `http.url` to a real server, store
+# PRODUCT_DOCS_TOKEN as a project secret, permit the server in the project's MCP allowlist, and
+# uncomment the `mcp:` block in `agents/plan-agent/agent.yaml`.
+#
+# One YAML document per server, at `.factorial/mcp/<name>.yaml` (shared by any agent that names it) or
+# `agents/<agent>/mcp/<name>.yaml` (that agent only). The file stem IS the server name: it is what
+# an agent's `mcp:` block references and what the tool prefix is built from
+# (`mcp__product-docs__search_docs`).
+#
+# WHAT THIS FILE CANNOT DO: declaring a server here does not make it run. The
+# project's operator allowlist (`project.settings.mcp_allowlist`, in the
+# orchestrator's database, where no agent can reach it) has to permit this exact name, transport, URL
+# and tool set. `.factorial/` lives in the repo agents open PRs against, so it selects; it never grants.
+specVersion: factorial/v1
+kind: McpServer
+name: product-docs
+description: Read-only search over the product documentation site, for grounding specs in what already exists
+
+# http | sse | stdio. Prefer `http`. A `stdio` server runs a command *inside* the agent's
+# container, beside a live GH_TOKEN. Read the notes at the bottom of this file before you
+# use it.
+transport: http
+
+http:
+  # HTTPS only; the loader refuses anything else, because the headers below are credentials.
+  url: https://mcp.internal.example.com/product-docs/mcp
+  headers:
+    # `{secrets.KEY}` is the ONLY substitution allowed here, and the only way to name a credential
+    # in `.factorial/`. The value never lives in this folder: the orchestrator resolves the key from its
+    # encrypted `secret` table at spawn, and the runtime adapter renders it into the substrate's
+    # config. A key referenced here MUST appear in `secrets:` below, or the manifest is rejected.
+    Authorization: "Bearer {secrets.PRODUCT_DOCS_TOKEN}"
+
+# Declared, not stored: same rule as `agent.yaml`. This list is what the orchestrator resolves at
+# spawn. It is not an isolation boundary.
+secrets:
+  - key: PRODUCT_DOCS_TOKEN
+    description: Read-only API token for the product documentation MCP server
+
+tools:
+  # fnmatch patterns. Omit `allow` to permit every tool the server exposes. That is legal, but
+  # the operator allowlist still has to permit it. Keep agents to read-only tools: an MCP server that
+  # can *write* to an external system is authority no postcondition verifies.
+  allow:
+    - search_docs
+    - get_doc
+
+# true (default): a server that will not connect fails the run, with a reason on the step_run.
+# false: the run proceeds without it. `true` is right whenever the prompt tells the agent to use
+# the tool: silent degradation makes a config bug look like a bad agent.
+#
+# `false` HERE only because the URL above is a placeholder: a copied sample must not fail its runs
+# against an endpoint that does not exist. Set it to `true` for a server you depend on.
+required: false
+
+# --- stdio, if you must -------------------------------------------------------------------------
+#
+# transport: stdio
+# stdio:
+#   command: npx
+#   args: ["-y", "@acme/repo-index-mcp@1.4.2"]   # EXACT version. The loader refuses `@latest`,
+#                                                # because a floating tag changes the code running
+#                                                # beside a live GH_TOKEN without changing any
+#                                                # pinned config, which is the one property pinning
+#                                                # exists to provide.
+#   env:
+#     REPO_INDEX_TOKEN: "{secrets.REPO_INDEX_TOKEN}"
+#
+# The operator allowlist matches `command` and `args` exactly, so switching packages or versions is
+# a change only an operator can make.
