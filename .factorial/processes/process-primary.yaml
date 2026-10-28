@@ -1,0 +1,179 @@
+specVersion: factorial/v1
+kind: Process
+name: primary
+
+# What this process expects of the REPOSITORY, as opposed to how its steps run (that is
+# `defaults`). required | advisory | ignored, default advisory. It changes what the configuration
+# page reports about the default branch's protection and nothing else: none of the three gate
+# activation, admission, or a merge, because this file lives in the repo agents write to and
+# enforcement an agent can switch off reads as a control while being a preference. Write
+# `ignored`, never `off`: YAML reads a bare `off` as the boolean false.
+policy:
+  branchProtection: advisory
+runtime: claude-code-api-key
+description: Plan, spec review, build, code review, done (GitHub only)
+
+roles:
+  spec_reviewers: ["{ticket_owner}"]
+  code_reviewers: ["{ticket_owner}"] # single-reviewer sample; point at a real team later
+
+defaults:
+  timeout: 1h # matches the agents' max_duration
+  retry:
+    maxAttempts: 2
+    backoff: 10m
+  onFailure:
+    escalate:
+      ticketLabel: "factorial:blocked"
+      assign: ["{ticket_owner}"]
+      comment: |
+        Factorial stopped at {step} after {attempt} attempt(s): {failure_summary}.
+        Fix the cause, then remove `factorial:blocked` to retry.
+
+entry:
+  when:
+    all:
+      - ticket_label("factorial:new")
+      - ticket_has_assignee()
+  step: plan
+
+steps:
+  # ------------------------------------------------------------------- 1. plan (agent)
+  - name: plan
+    kind: agent
+    description: Turn the ticket into a reviewable contract (spec, plan, tasks)
+    agent: plan-agent
+    next: spec_review_gate
+    workspace:
+      repo: "{repo}"
+      base: main
+      branch: "spec/{ticket}-{slug}" # {slug} is chosen by the agent at runtime
+    preconditions:
+      all:
+        - ticket_has_assignee()
+    inputs:
+      - ticket_body
+      - ticket_comments
+    # Fires once per attempt, when the spawn happens. {step} and {attempt} are available.
+    onStart:
+      comment: "Plan agent starting (attempt {attempt}). It turns the ticket into a reviewable contract."
+    postconditions:
+      all:
+        - branch_exists("spec/{ticket}-*")
+        - file_exists("specs/{ticket}-*/spec.md", "spec/{ticket}-*")
+        - pr_open("spec/{ticket}-*", "main")
+    onSuccess:
+      ticketLabel: "factorial:spec-review"
+      assign: ["{roles.spec_reviewers}"]
+      comment: "Spec ready for review: {pr_url}"
+    # The files shown beside each run, each in its own tab: the summary page this agent writes
+    # for the reviewer (its `spec-page` skill), then the three spec files. Each is read from the
+    # step's own branch, so it merges with the spec. A path ending in `.html` is served as a page,
+    # `.md` as rendered Markdown, anything else as plain text, all with scripts and network off.
+    # A path with `*` (one folder) or `**` (any folders) is a pattern, which shows each file it
+    # matches in its own tab and must have a label: `{ path: "reports/{ticket}/*.html", label:
+    # "Reports" }`. Display only: a file the agent did not write shows as missing. See
+    # docs/enable-previews.md.
+    preview:
+      files:
+        - { path: "specs/{ticket}-{slug}/summary.html", label: "Summary" }
+        - { path: "specs/{ticket}-{slug}/spec.md", label: "Spec" }
+        - { path: "specs/{ticket}-{slug}/plan.md", label: "Plan" }
+        - { path: "specs/{ticket}-{slug}/tasks.md", label: "Tasks" }
+
+  # ------------------------------------------------------------- 2. spec review (human)
+  - name: spec_review_gate
+    kind: human_gate
+    description: Reviewer approves the spec pull request
+    next: build
+    gate:
+      type: pr_approval
+      pr: { head: "spec/{ticket}-*", base: "main" }
+      approvers: ["{roles.spec_reviewers}"]
+      approverPermission: write
+      waiting:
+        ticketLabel: "factorial:spec-review"
+        # REPLACES the assignees: the gate parks the ticket with its own approvers.
+        assign: ["{roles.spec_reviewers}"]
+      onApprove:
+        merge: true
+        ticketLabel: "factorial:ready-for-build"
+        assign: ["{ticket_owner}"]
+      onReject:
+        rerunStep: plan
+        inputs:
+          - pr_review_comments
+        ticketLabel: "factorial:spec-rework"
+        assign: ["{ticket_owner}"]
+
+  # ------------------------------------------------------------------ 3. build (agent)
+  - name: build
+    kind: agent
+    description: Implement the approved spec
+    agent: build-agent
+    next: code_review_gate
+    workspace:
+      repo: "{repo}"
+      base: main # the spec merged at spec_review_gate, so the build starts from main
+      branch: "impl/{ticket}-{slug}"
+    preconditions:
+      all:
+        # Observe another step's finished work. Never guard a step against its own earlier
+        # attempts (`not: branch_exists(...)`): a rework could then never start.
+        - pr_merged("spec/{ticket}-*", "main")
+    inputs:
+      - ticket_body
+      - file: "specs/{ticket}-*/spec.md"
+      - file: "specs/{ticket}-*/tasks.md"
+    onStart:
+      comment: "Build agent starting (attempt {attempt}). It implements the approved spec."
+    postconditions:
+      all:
+        - branch_exists("impl/{ticket}-*")
+        - pr_open("impl/{ticket}-*", "main")
+    onSuccess:
+      ticketLabel: "factorial:testing"
+      comment: "Implementation ready for testing: {pr_url}"
+    # Optional, and off here. `preview:` shows each run's output beside its terminal.
+    # `services` has the run's own E2B sandbox serve it when a reviewer presses Start, so the
+    # process must name an E2B runtime; without `services`, a producer publishes the URL with
+    # `PUT /api/step-runs/{id}/preview`. Bind the server to 0.0.0.0 and adapt the commands to the
+    # repo; see docs/enable-previews.md.
+    # preview:
+    #   setup: ["npm ci"]
+    #   services:
+    #     - name: web
+    #       command: "npm run dev -- --host 0.0.0.0 --port $PORT"
+    #       port: 3000
+    #       ready: { path: "/", timeout: 120s }
+    #   stopAfter: 30m
+
+  # ------------------------------------------------------------- 5. code review (human)
+  - name: code_review_gate
+    kind: human_gate
+    description: Reviewer approves the implementation pull request
+    next: done
+    gate:
+      type: pr_approval
+      pr: { head: "impl/{ticket}-*", base: "main" }
+      approvers: ["{roles.code_reviewers}"]
+      approverPermission: write
+      waiting:
+        ticketLabel: "factorial:code-review"
+        assign: ["{roles.code_reviewers}"]
+      onApprove:
+        merge: true
+        ticketLabel: "factorial:done"
+        assign: ["{ticket_owner}"]
+      onReject:
+        rerunStep: build
+        inputs:
+          - pr_review_comments
+        ticketLabel: "factorial:build-rework"
+        assign: ["{ticket_owner}"]
+
+terminal:
+  step: done
+  actions:
+    closeTicket: true
+    comment: "Factorial finished. Merged to main."

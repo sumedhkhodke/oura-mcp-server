@@ -1,0 +1,35 @@
+# Agent manifest, runtime-neutral. The orchestrator's agent registry points at this file;
+# the `runtime:` block is the only vendor-specific part (interpreted by the runtime adapter).
+specVersion: factorial/v1
+kind: Agent
+name: plan-agent
+description: Turns a raw request or ticket into a reviewable contract (a spec, a plan and a task list)
+
+prompts:
+  system: system-prompt.md # role + output contract
+  instructions: instructions.md # operational context (workspace, delivery, revision)
+
+skills:
+  local: # from this agent's skills/ directory
+    - speckit-specify
+    - speckit-clarify
+    - speckit-tasks
+  shared: # from the .factorial-level skills/ directory
+    - project-constitution
+    - spec-page # the summary page, when the step's preview declares one
+
+
+# Concrete model id, never a size alias: an alias resolves to a name the API rejects,
+# and the agent fails on its first turn.
+model: claude-haiku-4-5-20251001
+
+limits:
+  max_turns: 40 # the run fails once the agent takes more turns than this
+
+# What must be minted for this agent. This is NOT an isolation boundary: the substrate may
+# inject every stored secret into every container regardless of what is
+# declared here. Values are never stored in this folder; they come from the orchestrator's
+# project secrets at spawn time, except the vendor key, which the process's Runtime supplies.
+secrets:
+  - key: GH_TOKEN
+    description: GitHub App token, minted per run and scoped to the target repo

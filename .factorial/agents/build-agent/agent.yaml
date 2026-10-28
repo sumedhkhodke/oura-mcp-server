@@ -1,0 +1,30 @@
+# Agent manifest, runtime-neutral. The orchestrator's agent registry points at this file;
+# the `runtime:` block is the only vendor-specific part (interpreted by the runtime adapter).
+specVersion: factorial/v1
+kind: Agent
+name: build-agent
+description: Implements one approved specification and opens the implementation pull request
+
+prompts:
+  system: system-prompt.md
+  instructions: instructions.md
+
+skills:
+  local: [] # none yet
+  shared:
+    - project-constitution
+
+# Concrete model id, never a size alias: an alias resolves to a name the API rejects,
+# and the agent fails on its first turn.
+model: claude-haiku-4-5-20251001
+
+limits:
+  max_turns: 40 # the run fails once the agent takes more turns than this
+
+# What must be minted for this agent. This is NOT an isolation boundary: the substrate may
+# inject every stored secret into every container regardless of what is
+# declared here. Values are never stored in this folder; they come from the orchestrator's
+# project secrets at spawn time, except the vendor key, which the process's Runtime supplies.
+secrets:
+  - key: GH_TOKEN
+    description: GitHub App token, minted per run and scoped to the target repo
