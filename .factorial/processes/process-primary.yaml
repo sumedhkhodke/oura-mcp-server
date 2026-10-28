@@ -11,7 +11,7 @@ name: primary
 policy:
   branchProtection: advisory
 runtime: claude-code-api-key
-description: Plan, spec review, build, code review, done (GitHub only)
+description: Plan, spec review, build, code review, done (GitHub only). All PRs target staging.
 
 roles:
   spec_reviewers: ["{ticket_owner}"]
@@ -46,7 +46,7 @@ steps:
     next: spec_review_gate
     workspace:
       repo: "{repo}"
-      base: main
+      base: staging # project rule: PRs go to staging, never directly to main
       branch: "spec/{ticket}-{slug}" # {slug} is chosen by the agent at runtime
     preconditions:
       all:
@@ -61,7 +61,7 @@ steps:
       all:
         - branch_exists("spec/{ticket}-*")
         - file_exists("specs/{ticket}-*/spec.md", "spec/{ticket}-*")
-        - pr_open("spec/{ticket}-*", "main")
+        - pr_open("spec/{ticket}-*", "staging")
     onSuccess:
       ticketLabel: "factorial:spec-review"
       assign: ["{roles.spec_reviewers}"]
@@ -88,7 +88,7 @@ steps:
     next: build
     gate:
       type: pr_approval
-      pr: { head: "spec/{ticket}-*", base: "main" }
+      pr: { head: "spec/{ticket}-*", base: "staging" }
       approvers: ["{roles.spec_reviewers}"]
       approverPermission: write
       waiting:
@@ -114,13 +114,13 @@ steps:
     next: code_review_gate
     workspace:
       repo: "{repo}"
-      base: main # the spec merged at spec_review_gate, so the build starts from main
+      base: staging # the spec merged into staging at spec_review_gate, so the build starts from staging
       branch: "impl/{ticket}-{slug}"
     preconditions:
       all:
         # Observe another step's finished work. Never guard a step against its own earlier
         # attempts (`not: branch_exists(...)`): a rework could then never start.
-        - pr_merged("spec/{ticket}-*", "main")
+        - pr_merged("spec/{ticket}-*", "staging")
     inputs:
       - ticket_body
       - file: "specs/{ticket}-*/spec.md"
@@ -130,7 +130,7 @@ steps:
     postconditions:
       all:
         - branch_exists("impl/{ticket}-*")
-        - pr_open("impl/{ticket}-*", "main")
+        - pr_open("impl/{ticket}-*", "staging")
     onSuccess:
       ticketLabel: "factorial:testing"
       comment: "Implementation ready for testing: {pr_url}"
@@ -155,7 +155,7 @@ steps:
     next: done
     gate:
       type: pr_approval
-      pr: { head: "impl/{ticket}-*", base: "main" }
+      pr: { head: "impl/{ticket}-*", base: "staging" }
       approvers: ["{roles.code_reviewers}"]
       approverPermission: write
       waiting:
@@ -176,4 +176,4 @@ terminal:
   step: done
   actions:
     closeTicket: true
-    comment: "Factorial finished. Merged to main."
+    comment: "Factorial finished. Merged to staging."
