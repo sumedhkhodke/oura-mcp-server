@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spec #31: Add ping tool to Oura MCP server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+            padding: 2rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                color: #e0e0e0;
+                background: #1a1a1a;
+            }
+            a {
+                color: #5ba3ff;
+            }
+            a:visited {
+                color: #b88dff;
+            }
+            pre {
+                background: #2a2a2a;
+                border-color: #404040;
+            }
+            .assumption, .task {
+                background: #2a2a2a;
+                border-left-color: #505050;
+            }
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+        }
+
+        .status {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .status {
+                color: #999;
+            }
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            margin: 2rem 0 1rem 0;
+            font-weight: 600;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            h2 {
+                border-bottom-color: #404040;
+            }
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        .summary-box {
+            background: #f5f5f5;
+            border-left: 4px solid #0366d6;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.25rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .summary-box {
+                background: #2a2a2a;
+                border-left-color: #5ba3ff;
+            }
+        }
+
+        .assumption, .task {
+            background: #f9f9f9;
+            border-left: 4px solid #f0883e;
+            padding: 1rem;
+            margin: 0.75rem 0;
+            border-radius: 0.25rem;
+        }
+
+        .assumption strong, .task strong {
+            color: #0366d6;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .assumption strong, .task strong {
+                color: #5ba3ff;
+            }
+        }
+
+        .blast-radius {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .blast-radius {
+                color: #999;
+            }
+        }
+
+        .task {
+            border-left-color: #6cc644;
+        }
+
+        .dependency {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .dependency {
+                color: #999;
+            }
+        }
+
+        pre {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            margin: 1rem 0;
+        }
+
+        .links {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #f5f5f5;
+            border-radius: 0.25rem;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .links {
+                background: #2a2a2a;
+            }
+        }
+
+        .links ul {
+            list-style-position: inside;
+        }
+
+        .links li {
+            margin-bottom: 0.5rem;
+        }
+
+        a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        a:visited {
+            color: #6f42c1;
+        }
+
+        .implementation-view {
+            background: #f9f9f9;
+            border: 1px solid #e1e4e8;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .implementation-view {
+                background: #2a2a2a;
+                border-color: #404040;
+            }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            th, td {
+                border-color: #404040;
+            }
+        }
+
+        th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            th {
+                background: #2a2a2a;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spec #31: Add ping tool to Oura MCP server</h1>
+        <div class="status">Draft specification • 7 assumptions • 3 tasks</div>
+
+        <div class="summary-box">
+            <p><strong>What:</strong> Add a simple, stateless MCP tool named <code>ping</code> that returns the server name, package version, and current UTC timestamp. The tool requires no arguments, does not call the Oura API or require credentials, and serves as a lightweight health check for MCP clients and a connection test for the Factorial pipeline.</p>
+        </div>
+
+        <h2>Riskiest assumptions for review</h2>
+
+        <div class="assumption">
+            <strong>A1:</strong> The response contains exactly three fields (<code>server</code>, <code>version</code>, <code>time_utc</code>), with no wrapper dict or metadata.
+            <div class="blast-radius">If wrong: Clients expecting a simple object get nested data; structural change to response and all tests required.</div>
+        </div>
+
+        <div class="assumption">
+            <strong>A2:</strong> The <code>time_utc</code> field uses Python's <code>isoformat()</code> default format (e.g., <code>2026-10-28T16:30:45.123456+00:00</code>), not <code>Z</code> suffix.
+            <div class="blast-radius">If wrong: Clients parsing <code>Z</code> suffix will fail; timestamp format and AC5 change.</div>
+        </div>
+
+        <div class="assumption">
+            <strong>A3:</strong> The tool will never raise an exception and has no error path.
+            <div class="blast-radius">If wrong: A test expects error-case coverage; tool remains trivial with only a happy path.</div>
+        </div>
+
+        <h2>Implementation overview</h2>
+
+        <p>The <code>ping()</code> function is 3 lines of code, added before the <code>run()</code> function in <code>server.py</code>:</p>
+
+        <pre>@mcp.tool
+async def ping() -> dict[str, Any]:
+    """Ping the server: returns server name, version, and current UTC time."""
+    from datetime import datetime, timezone
+    return {
+        "server": mcp.name,
+        "version": __version__,
+        "time_utc": datetime.now(timezone.utc).isoformat(),
+    }</pre>
+
+        <h2>Work breakdown</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>What</th>
+                    <th>Depends on</th>
+                    <th>Satisfies</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>T1</strong></td>
+                    <td>Implement <code>ping()</code> in <code>server.py</code></td>
+                    <td>—</td>
+                    <td>AC1–AC5, AC9–AC10</td>
+                </tr>
+                <tr>
+                    <td><strong>T2</strong></td>
+                    <td>Write unit test in <code>tests/test_server_tools.py</code></td>
+                    <td>T1</td>
+                    <td>AC6–AC7</td>
+                </tr>
+                <tr>
+                    <td><strong>T3</strong></td>
+                    <td>Update README.md tools table</td>
+                    <td>—</td>
+                    <td>AC8</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p><strong>Critical path:</strong> T1 → T2. T3 can run in parallel with T2 (different files, no collision).</p>
+
+        <h2>Files modified</h2>
+
+        <pre>src/oura_mcp_server/
+├── server.py             (add ping() function, ~5 lines)
+└── __init__.py           (no change; version already exported)
+
+tests/
+└── test_server_tools.py  (add test_ping(), ~10 lines)
+
+README.md                  (add one-line entry to tools table)</pre>
+
+        <h2>Specification documents</h2>
+
+        <div class="links">
+            <ul>
+                <li><a href="spec.md" target="_blank">spec.md</a> — Requirements and acceptance criteria (10 AC, all mechanically checkable except AC10)</li>
+                <li><a href="plan.md" target="_blank">plan.md</a> — Implementation approach and risk analysis</li>
+                <li><a href="tasks.md" target="_blank">tasks.md</a> — Task breakdown, dependencies, coverage matrix</li>
+            </ul>
+        </div>
+
+        <h2>Not in scope</h2>
+
+        <p>Error handling (tool has no failure paths), extended diagnostics (uptime, metrics, git SHA), permissions gating (available to all MCP clients), logging/instrumentation, or API versioning (response format is fixed).</p>
+    </div>
+</body>
+</html>
