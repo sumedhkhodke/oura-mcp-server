@@ -23,10 +23,12 @@ logger = logging.getLogger("oura_mcp_server.auth")
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 
-# Claude hosted surfaces use one fixed callback. Claude Code uses an ephemeral
-# RFC 8252 loopback port, so both loopback host forms need wildcard ports.
+# Hosted MCP clients use one fixed callback each (Claude, Muse). Claude Code
+# uses an ephemeral RFC 8252 loopback port, so both loopback host forms need
+# wildcard ports.
 ALLOWED_CLIENT_REDIRECT_URIS = [
     "https://claude.ai/api/mcp/auth_callback",
+    "https://agent.meta.ai/api/hatch/oauth/callback",
     "http://localhost:*",
     "http://127.0.0.1:*",
 ]
